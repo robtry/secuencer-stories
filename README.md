@@ -15,8 +15,8 @@ Heavily inspired by [Navigating cities of code with Norris numbers](https://stac
 
 | File | Description |
 |------|-------------|
-| [november_2025.md](./2025/november_2025.md) | First steps into Arbitrum |
 | [december_2025.md](./2025/december_2025.md) | current |
+| [november_2025.md](./2025/november_2025.md) | First steps into Arbitrum |
 | [GLOSSARY.md](./GLOSSARY.md) | Terms and definitions |
 
 ## TODO

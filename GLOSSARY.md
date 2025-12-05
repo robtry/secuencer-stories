@@ -18,3 +18,11 @@ Number used ONCE. In btc its the value that the miners change to find a valid ha
 ## DAO
 
 A Decentralized Autonomous Organization (DAO) is an organization that is run through rules encoded as computer programs called smart contracts. DAOs are designed to be transparent, democratic, and autonomous, allowing members to participate in decision-making processes without the need for a centralized authority.
+
+## Hard Fork
+
+A hard fork is a significant change to a blockchain protocol that is not backward compatible. This means that nodes running the old version of the software will not be able to validate blocks created by nodes running the new version.
+
+## Faucet
+
+A faucet is a website or application that dispenses small amounts of cryptocurrency to users for free. Faucets are often used as a way to introduce new users to a particular cryptocurrency or blockchain network, allowing them to obtain a small amount of the currency without having to purchase it.
