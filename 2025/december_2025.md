@@ -1,3 +1,153 @@
+# 15 - 12 - 2025
+
+- This week I am going to try to focus into compiling my own nitro-image.
+
+
+# 12 - 12 - 2025
+
+- I feel more confortable writing the journal when I read a lot of documentation rather than playing with the code directly.
+- I did read every line in the [nitro testnode script](https://github.com/OffchainLabs/nitro-testnode/blob/release/test-node.bash) in order to understand.
+- Passing `--dev` compiles the source code but it takes time also passing `--dev-contracts` stays frozen. Idk if I am going to open a issue or is just the machine.
+- I need to undertand now how does the docker files works to modify the nitro code.
+
+# 11 - 12 - 2025
+
+- Since I discovered the docs for node-dev and that it is constantly updates of course there is [nitro testnode](https://docs.arbitrum.io/run-arbitrum-node/run-local-full-chain-simulation) 
+- There are interesting commands to play around https://docs.arbitrum.io/run-arbitrum-node/run-local-full-chain-simulation#rollup-contract-addresses-and-chain-configuration
+- *"The chain configuration also includes the addresses of the core contracts."* Those address will be useful.
+- `./test-node.bash --help` shows all the options to configure the testnode.
+- `./test-node.bash script --help`  funding accounts or bridging funds
+- `./test-node.bash script send-l1 --help` there is also help for each subcommand.
+- [list of endpoints](https://docs.arbitrum.io/run-arbitrum-node/run-local-full-chain-simulation#default-endpoints-and-addresses) very useful so I dont need to manually check each docker.
+- So lets plan the incremental flags such it simulates the most posible a real nitro.
+
+
+# 10 - 12 - 2025
+
+- Today I applied to be an [embassador](https://arbitrum.foundation/ambassador) for arbitrum. Lets see if I get accepted.
+- If there are many smart contracts for the well functioning of arb nitro, how do they manage upgrades? (later). Also I need to understand very well those contracts. Probably play around with them in nitro-devnode first.
+
+- But today lets explore  [nitro testnode](https://github.com/OffchainLabs/nitro-testnode)
+
+- This is a sample of arb nitro set up:
+1. emulated eth l1 with geth (8545), prysm beacon node and prysm validator
+1. rollup contracts ( inbox, bridge )
+1. l2 nitro, sequencer in 8547 and 8548 (redis), poster, validator/staker, relay, validation node (wasm), relay (feed)
+1. optional l3
+1. block explorer (optional)
+
+The [script](https://github.com/OffchainLabs/nitro-testnode/blob/release/test-node.bash)
+
+- Start with the classic `set -eu` not `pipefail` here.
+- It has a lot of env vars to configure the node:
+   - `--init`: delete persistent data and start from scratch.
+   - `--init-force`: same as init but do not ask for confirmation.
+   - `--dev`: compiles nitro from source code. ( probably I will need this later.) do not pull
+   - `--validate`: hard to compute but validate wasm.
+   - `--l3node`: deploys a l3 node in the top of l2.
+   - `--l2anytrust`: run l2 in anytrust mode (nova). DA commite
+   - `--l2timeboots`: enable timeboots auction. Also bid validator
+   - `--tokenbridge`: deploy arb token bridge contracts.
+   - `--pos`: enable proof of stake for l1
+   - `--batchposter`: set the number of batchs posters.
+   - There are many more, the script is well documented. With the classic `--help` flag.
+
+# 9 - 12 - 2025
+
+Beyond docker and jq, I also need to add to my toolbox [foundryup](https://getfoundry.sh/introduction/installation/).
+
+I think it is like a hardhat, will see.
+
+Yup it is like hardhat but made in rust.
+
+Fortunately the arb repositries are well documented and run with no problems.
+
+- The script ran a simplified version of a sequencer.
+- Ran EVM to test smart contracts.
+- Loses the state after stopping the container. By default it has `--dev` flag enabled which make it ephemeral.
+- RPC server is exposed in port 8547
+- Enables apis `--http.api=net,web3,eth,debug`
+- Don't post to l1
+- Don't batch txs
+- Don't run validation proof
+
+Lets analize the ![script](https://github.com/OffchainLabs/nitro-devnode/blob/main/run-dev-node.sh) in detail:
+
+- Starts with the classic `set -euo pipefail` to make the script fail on errors.
+- The only flag you can add is `--contract-size x` to allow deploying bigger contracts default is 24kb.
+- After the setup it ran the function `becomeChainOwner()`. Only aviable in dev mode. Based in the `AllowDebugPrecompiles` var. In the initial JSON config.
+
+- Then it sets l1 data fee to 0 `setL1DataFeePerByte`. Using `cast` from foundry.
+- Okay so when you send a tx to arb you need to pay 2 fees:
+   - L2 execution fee: fee to execute the tx in arb.
+   - L1 data fee: fee to post the tx data to eth l1
+- Since we don't have a real l1, and this is to test contracts, we set it to 0. Otherwise could use default values and can be very high.
+
+A brief introduction to [foundry](https://getfoundry.sh/introduction/getting-started):
+- `forge` is the smart contract development tool. (compile, test, deploy).
+- `cast` interacts with blockchain (send txs, call contracts, query data).
+- `anvil` is a local eth node (like ganache or hardhat node).
+- `chisel` REPL solitidy. REPL is read-eval-print-loop. (debug contracts interactively).
+
+A brief introduction to `cast`:
+- `cast send` send a tx to a contract.
+- `cast call` call a contract function without sending a tx (no state change).
+- `cast publish` publish raw tx presigned
+- `cast code` get contract bytecode
+- `cast create2` compute create2 address
+- `cast balance` get address balances
+- `cast chain-id` get chain id
+- `cast block latest` get block information
+- `cast disassemble 0x60a06040523060805234801561001457600080fd5b50` -> get assembly from bytecode.
+- `cast `: can create wallets, nmemonic, sign messages, etc.
+
+- Then deploys create2 factory contract.
+
+Now what is create2 fucntion? does it means that there is create and create2?
+- `CREATE`: creates a new contract with an address that is derived from the creator's address and their nonce. SO the contract address can be different depending on when and how many contracts the creator has deployed.
+- `CREATE2`: creates a new contract with an address that is derived from the creator's. Deterministic address. Useful for multichain deployments.
+- Thats why it is called create2 factory, because it allows you to deploy contracts with deterministic addresses.
+- ` 0x4e59b44847b379578588920cA78FbF26c0B4956C` is the same in almost all evms.
+
+- Then it deploys cache manager contract. Needed for Arbitrum Stylus.
+   - with no cache: user calls stylus contract -> node loads bytecode from storage -> node compiles  -> executes the code. As a good engeneer knows, the bottleneck is compilation.
+   - with cache: stylus contrat is deployed -> calls `cache()` -> got precompiled -> its ready to execute.
+
+Only whitelisted cache managers contracts can be used.
+
+- Then deploys stylus deployer contract: which helps to deploy stylus contracts. Instead of:
+   - deploy, active and cache
+   - just one tx to deploy using `stylusDeployer.deployAndActivate(...)`
+
+- Arb in dev mode do not produces empty blocks, only when there are txs.
+- The deploy for this contracts are made using just the bytecode address.
+- I cant not modify arb nitro code from here, this is just a node with develoment config. Or I would need to create my own docker image.
+
+- I am goiing to deploy a simeple stylus contract, to test. Ive already deployed a clasic erc20 smarrt contracts, but I definitly need to dive deeper.
+
+This repo requires only 3 deploys:
+- Create2 factory
+- Cache manager
+- Stylus deployer
+
+But the real arb nitro requires around ~35 contracts deployed in l1 and l2. (later).
+
+I didn't know but in the arb documentation there are instructions to deploy a [devnode](https://docs.arbitrum.io/run-arbitrum-node/run-nitro-dev-node).
+Looks like I am used to trust only in the code.
+
+Fortunately the docs are updated constantly for exmple here says `Last updated on Dec 4, 2025`
+
+# 8 - 12 - 2025
+
+I feel like I am ready to start with [nitro-devnode](https://github.com/OffchainLabs/nitro-devnode.git)
+
+Following up on the questions I had. A good friend helped me to clarify about the hardforks. TL;DR:
+- Hardforks: happens when making non backward compatible changes to the protocol. All nodes need to update to the new version. If some nodes do not update, the chain (forks) splits. Create a new status new chain. 
+- Fork: bifurcation in the chain. When two blocks are mined at the same time, the chain splits until one becomes longer and the other is abandoned.
+- Softfork: a change that is backward compatible. Old nodes can still validate new blocks.
+
+I continue reading about the [sequencer](https://docs.arbitrum.io/how-arbitrum-works/deep-dives/sequencer)
+
 # 5 - 12 - 2025
 
 - **Native Token**: A simple token that exists only in L2. ERC20. Not gateway needed.
@@ -8,8 +158,8 @@
 - **Token gateway**: cotracs for the token bridges between l1 and l2 communication.
 - **Reverse Token Gateway**: when the token borns in l2 and you want to withdraw to l1.
 
-
 ```txt
+claude conversation
   ¿Tu token ya existe en L1?
   │
   ├── NO → Token Nativo L2 
