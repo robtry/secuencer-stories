@@ -1,14 +1,112 @@
+# 19 - 12 - 2025
+
+- Looks like all claude features are just different ways to handle prompts and context I will no go deep in this.
+- So luckyly install mcps and agents its easier now, installed the mcps/plugins mentioned yesterday.
+- Now I iterate with claude to modify the plan:
+  1. Add a test plan to verify changes.
+  1. Non only deploy token, modify the code to rebrand ARB -> Capu, for example ArbOS -> CapuOS.
+- So far its going good, the conxtext is compacting  well and I can keep the session alive longer.
+
+# 18 - 12 - 2025
+
+- Actually Claude did something, I dont know yet if today I will connect the tools I've saved to test. And reproduce the same task experiment to see if it does something different. Specially with the memory management. 
+- But at the end looks like he completed the task successfully. Also I requested a summary of the steps taken but not sure how accurate it is because of the restarts. I need to be more clear about the changes.
+- Also change the branch idk if the use redis also in the release branch.
+- The changes were just a few lines of code, and just 5 files.
+
+- Lets explore the changes and summary he gave me in `nitro-testnode`:
+
+```sh
+docker-compose.yml # chain id
+scripts/config.ts # chain ids
+scripts/ethcommands.ts # create ecr20 smart contract using openzeppelin
+scripts/index.ts # exports new token functios for smart contracts
+test-node.bash # child chain name
+```
+
+- Definitly going to try using "experts plugins" and memory management plugins.
+- Running a buch of test will help me to evaluate the changes beyond the tx and changes.
+- However I think it should not be hard to create the new token I also need to specify or idk how convienient is to change `"ARB"` texts in the code, lets reiterate over it.
+- Lets start 1. create a plan to compile source code changing the token/machine name, 2. add pluigns to claude, 3. ask for tests to verify changes (tdd).
+- Okay so about planning its the same iterate with multiple sesions.
+- Now the interesing part is about the plugins and even today antropic announced [skills](https://x.com/adocomplete/status/2001753599504978104/photo/1) but only for teams, so I cant use them but I think I didnt need them, my point is that they are releasing new features constantly. So tools to check:
+   - [claudiomiro](https://github.com/samuelfaj/claudiomiro): Decompose in smaller tasks
+   - [quint-code](https://github.com/m0n0x41d/quint-code): this one is something that I tried it is keep context of memory changes.
+   - [claude-code-otel](https://github.com/ColeMurray/claude-code-otel/): opentelemtry, grafana and loki to monitor claude code sessions.
+   - [google-mcp](https://github.com/google/mcp): official google mcp tools
+   - [claude-mem](https://github.com/thedotmack/claude-mem): The one that I was looking for to manage long term memory, maybe substitute `quint-code` and easier to install.
+   - [awesome-claude-skills](https://github.com/travisvn/awesome-claude-skills/): looks like this skills exists before the oficial claude skills release.
+   - [skills](https://github.com/anthropics/skills): oficial skills repo
+   - [claude-code-plugins](https://github.com/anthropics/claude-plugins-official): oficial plugins repo, actually  `claude-mem` its a plugin .
+   - [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers): list of mcp servers.
+   - [awesome-blockchain-mcps](https://github.com/royyannick/awesome-blockchain-mcps): list of mcp servers for blockchain
+
+
+Looks like this is another rabbit hole to explore. There are even [claudeup](https://github.com/MadAppGang/claude-code/tree/main/tools/claudeup) to manage plugins and mcps, I guess in the near future will support skills too or became part of the oficial tools.
+
+There are skills, rules, commands, plugins, mcps, hooks, subagents. And extra tools developed by community like this [vizualizer](https://x.com/BenjaminDEKR/status/2001641311825285391)
+
+I think its okay to test here I am still using the snap mode. So I am going to try `claude-mem`, `go mcp`, `evm mcp` not sure if I need it rn.
+
+# 17 - 12 - 2025
+
+- Finally I completed the migration, computer setup with snapshots and tools requiered to work with nitro arb code.
+- I feel lucky of the ram and cpu of this computer, compiling nitro code is faster, now that ram prices are higher than gold. Also I saw a notice about samsung stopping to produce sdds, looks like hardware is going to be more expensive in the future.
+- Lets continue, I also going to share my claude setup once I start adding plugins and interesting tools. Beyond the basic stuff.
+- Today with a good computer my idea is to allow claude to do everything needed to complete my first task which is deploy a copy of arb with another token name, yup thats the first step in this fork process.
+- I put a simple prompt "Use the nitro testnode to deploy a l2 over l1 eth chaging the toke name, chain id and test txs"
+- Iterate with him to create a complex plan with him, exploring the code base, searching in web, and solve his own doubts himself or whit my help. I made like 4 iterations until he created a good plan, each iteration took the 150,000 tokens limit.
+- The final good prompt was something like: 'if you read the plan for first time in another session would you have any questions?' and he added more context to the plan.
+- Then I ran the dangerous command `claude --dangerouly-skip-permissions` first time in my life, they also recommend you ran it in a vm, container or anywhere you can rollback, they are aware of the risks. Also I was nervous but I have the backup... of course he could delete the lvm backup but its okay its a new and clean installation with the required tools I can reisntall it again.
+- Of course the context window was not enough I had to restart the session multiple time because the autocompact function didn't work and also the `/compact` command didntwork either. 
+- The task took 14 gbs of storage (), hmm I've heard of `node_modules` weird size problems, but 14 gbs haha of course compiling docker images can take a lot of space.
+- Saw on X this tool [code wiki google](https://codewiki.google/) but they do no have arb nitro yet.
+
+# 16 - 12 - 2025
+
+- Well today its not about arb and the code today I am going to finish the computer setup. I know that the journey idea its about arb, but this part of the process too.
+- I am a big fan of self hosting, my repo was public but since I am going to use it for more personal stuff I made it private.
+- So far I like to share some of those services that I am running: nextcloud, jellyfin, adguardhome, neko, speedtest tracker. (I have many many more to try, but I will beworking on weekends on those). Remember I just move those services to free up the computer for arb nitro. Also I plug a kind of bay of 5 sdds to met the storage needs, and cofigure those using lvm via usb and making sure that they do not break the computer if one sdd fails. I had to migrate many data and move sdds between computers.
+- Of course this could be helpful for infrastructure that I will need to run arb nitro nodes in the future.
+- Finally I can clean the computer, moving from arch with hyperland to a "simple" ubuntu server and LVM to take advantage of snapshots, the idea is that Claude Code can play debug itself with no risk of breaking the system. This is the first time I use this feature and I hope it works as expected.
+- I've read many cases where llms delete the entire system a clasic `rm -rf /` or similar. So I want to avoid that. Specially because the idea is give him the whole systempowers, also see that they are trying to add hooks presiasly for that. To avoid let them run dangerous commands or notify about anything you could need.
+- I cant move now because I haven't resolve the remote access with ipv6 yet. On weekend I am going to try to fix that and configure cloudflare tunnes, wg with flokinet, zerotier and give another try to ipv6 remote access.
+- I have to mention here that I use to think that ssd and nvme where almost the same and had similar speeds, but after testing both I realized that nvme are way faster. So if you need speed go for nvme. I don't want to buy another sdd again. Even a adapter with usb-c is faster than sata sdd.
+
 # 15 - 12 - 2025
 
-- This week I am going to try to focus into compiling my own nitro-image.
-
+- This week I am going to try to focus into compiling my own nitro-image. But first I need a good computer, the one that I am using needs more ram, I tried to compile images there and it its taking too long.
+- I got rejected from the arb ambasssador program, I guess I need to contribute more to be accepted.
+- Unfurtunately I had to take another 3 sidequest:
+   1. In order to free a computer with the required specs, I need to restore another computer to migrate all the services running there. Also move a lot of sdds between computers.
+   1. I am going be taking a side task on mondays not related to this. I hope it doesn't take too much time and overtime it takes less and less time. This will be another quest hahaha ... "learn to delegate". Which is something I had to learn also using AI tools. Nowdays there is no need to write everithing, there are more value knowing what to ask and how to ask it, but I still feel that in order to be a good engineer I need to write code too.
+     1. Lets add another sidequest: optimize enviroment setup for AI tools, mcps, long memory term, remote sessions, token management, etc. This days the antropic team are releasing a lot of new features. This also make me think... do I need to use all those features? I mean if those ideas wasn't in my mind or I didn't whish those features existed, do I really need them?, they include or push those features because probably people are asking for them? or because they want to be the best? or because they want to cover all the posible use cases?. I think I need to be careful and not get lost in the sea of features. [x](https://x.com/ClaudeCodeLog)
+     1. The idea before described also applies to my `nvim` config and terminal stuff.
 
 # 12 - 12 - 2025
 
 - I feel more confortable writing the journal when I read a lot of documentation rather than playing with the code directly.
 - I did read every line in the [nitro testnode script](https://github.com/OffchainLabs/nitro-testnode/blob/release/test-node.bash) in order to understand.
 - Passing `--dev` compiles the source code but it takes time also passing `--dev-contracts` stays frozen. Idk if I am going to open a issue or is just the machine.
-- I need to undertand now how does the docker files works to modify the nitro code.
+- I need to undertand now how does the docker files works to modify the nitro code. I am also going to get back to basics, there are a few commands/keywords that I didnt remeber at all. I am going to put them under `poc`. My idea is that pocs are going to be increasing over time.
+- The plan is:
+
+```sh
+# Step 1: L1 PoS + L2 Simple 
+./test-node.bash --init-force --dev --dev-contracts --pos --detach
+
+# Step 2: No simple
+./test-node.bash --init-force --dev --dev-contracts --pos --no-simple --detach
+
+# Step 3: WASM (fraud proofs)
+./test-node.bash --init-force --dev --dev-contracts --pos --no-simple --validate --detach
+
+# Step 4: + Token Bridge L1↔L2
+./test-node.bash --init-force --dev --dev-contracts --pos --no-simple --validate --tokenbridge --detach
+
+# Step 5: + Block Explorer
+./test-node.bash --init-force --dev --dev-contracts --pos --no-simple --validate --tokenbridge --blockscout --detach
+```
 
 # 11 - 12 - 2025
 
@@ -20,6 +118,7 @@
 - `./test-node.bash script send-l1 --help` there is also help for each subcommand.
 - [list of endpoints](https://docs.arbitrum.io/run-arbitrum-node/run-local-full-chain-simulation#default-endpoints-and-addresses) very useful so I dont need to manually check each docker.
 - So lets plan the incremental flags such it simulates the most posible a real nitro.
+- I have the plan for incremental nitro flags. Idk why when you add `--no-simple` always try to run with redis... well probably is because of the branch I am using. Because as far as I know they are not using redis yet in production.
 
 
 # 10 - 12 - 2025
