@@ -1,0 +1,78 @@
+name: Check Arbitrum Releases
+
+on:
+  schedule:
+    # Every 12 hours: 7 AM and 7 PM Mexico time (UTC-6)
+    # 7 AM UTC-6 = 13:00 UTC, 7 PM UTC-6 = 01:00 UTC
+    - cron: '0 1,13 * * *'
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  check-nitro:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Nitro releases (all types)
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          # Get all releases (includes RC, pre-releases, etc.)
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/nitro/releases?per_page=5")
+
+          NOW_TS=$(date +%s)
+          FOUND_NEW=false
+
+          # Loop through recent releases
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PRERELEASE=$(echo "$RELEASE" | jq -r '.prerelease')
+            BODY=$(echo "$RELEASE" | jq -r '.body' | head -c 1000)
+
+            # Convert date to timestamp
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+
+            # Determine release type
+            if [ "$PRERELEASE" = "true" ]; then
+              RELEASE_TYPE="Pre-release / RC"
+              COLOR=15844367  # Gold
+            else
+              RELEASE_TYPE="Official Release"
+              COLOR=3447003   # Blue
+            fi
+
+            echo "Found: $TAG ($RELEASE_TYPE) - published $DIFF_HOURS hours ago"
+
+            # If published in the last 13 hours, notify (margin for 12h schedule)
+            if [ "$DIFF_HOURS" -lt 13 ]; then
+              echo "New release detected! Sending notification for $TAG..."
+
+              # Prepare Discord message
+              curl -X POST "$DISCORD_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "Nitro $TAG",
+              "url": "$URL",
+              "color": $COLOR,
+              "description": "**$RELEASE_TYPE**\nNew Arbitrum Nitro version available",
+              "fields": [
+                {
+                  "name": "Changelog",
+                  "value": "$(echo "$BODY" | head -c 500 | sed 's/"/\\"/g' | tr '\n' ' ')..."
+                }
+              ],
+              "footer": {
+                "text": "OffchainLabs/nitro"
+              },
+              "timestamp": "$PUBLISHED"
+            }]
+          }
+          EOF
+              echo "Notification sent for $TAG!"
+            fi
+          done
+
+          echo "Check completed."
