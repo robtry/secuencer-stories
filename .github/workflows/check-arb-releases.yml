@@ -16,7 +16,7 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           # Get all releases (includes RC, pre-releases, etc.)
-          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/nitro/releases?per_page=5")
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/nitro/releases?per_page=1")
 
           NOW_TS=$(date +%s)
           FOUND_NEW=false
@@ -44,8 +44,8 @@ jobs:
 
             echo "Found: $TAG ($RELEASE_TYPE) - published $DIFF_HOURS hours ago"
 
-            # If published in the last 13 hours, notify (margin for 12h schedule)
-            if [ "$DIFF_HOURS" -lt 13 ]; then
+            # If published in the last 11 hours, notify (avoid duplicates on 12h schedule)
+            if [ "$DIFF_HOURS" -lt 11 ]; then
               echo "New release detected! Sending notification for $TAG..."
 
               # Prepare Discord message
@@ -76,3 +76,358 @@ jobs:
           done
 
           echo "Check completed."
+
+  check-go-ethereum:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check go-ethereum releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/go-ethereum/releases?per_page=1")
+          NOW_TS=$(date +%s)
+
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PRERELEASE=$(echo "$RELEASE" | jq -r '.prerelease')
+
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+
+            if [ "$PRERELEASE" = "true" ]; then
+              RELEASE_TYPE="Pre-release"
+              COLOR=15844367
+            else
+              RELEASE_TYPE="Release"
+              COLOR=5763719  # Green
+            fi
+
+            echo "Found: $TAG ($RELEASE_TYPE) - published $DIFF_HOURS hours ago"
+
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              echo "New release detected! Sending notification for $TAG..."
+              curl -X POST "$DISCORD_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"go-ethereum $TAG\", \"url\": \"$URL\", \"color\": $COLOR, \"description\": \"**$RELEASE_TYPE**\nNew OffchainLabs go-ethereum version\", \"footer\": {\"text\": \"OffchainLabs/go-ethereum\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+              echo "Notification sent for $TAG!"
+            fi
+          done
+          echo "Check completed."
+
+  check-stylus-sdk-rs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check stylus-sdk-rs releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/stylus-sdk-rs/releases?per_page=1")
+          NOW_TS=$(date +%s)
+
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PRERELEASE=$(echo "$RELEASE" | jq -r '.prerelease')
+
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+
+            if [ "$PRERELEASE" = "true" ]; then
+              RELEASE_TYPE="Pre-release"
+              COLOR=15844367
+            else
+              RELEASE_TYPE="Release"
+              COLOR=15418782  # Rust orange
+            fi
+
+            echo "Found: $TAG ($RELEASE_TYPE) - published $DIFF_HOURS hours ago"
+
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              echo "New release detected! Sending notification for $TAG..."
+              curl -X POST "$DISCORD_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"stylus-sdk-rs $TAG\", \"url\": \"$URL\", \"color\": $COLOR, \"description\": \"**$RELEASE_TYPE**\nNew Stylus Rust SDK version\", \"footer\": {\"text\": \"OffchainLabs/stylus-sdk-rs\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+              echo "Notification sent for $TAG!"
+            fi
+          done
+          echo "Check completed."
+
+  check-nitro-testnode:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check nitro-testnode releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/nitro-testnode/releases?per_page=1")
+          NOW_TS=$(date +%s)
+
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PRERELEASE=$(echo "$RELEASE" | jq -r '.prerelease')
+
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+
+            if [ "$PRERELEASE" = "true" ]; then
+              RELEASE_TYPE="Pre-release"
+              COLOR=15844367
+            else
+              RELEASE_TYPE="Release"
+              COLOR=10181046  # Purple
+            fi
+
+            echo "Found: $TAG ($RELEASE_TYPE) - published $DIFF_HOURS hours ago"
+
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              echo "New release detected! Sending notification for $TAG..."
+              curl -X POST "$DISCORD_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"nitro-testnode $TAG\", \"url\": \"$URL\", \"color\": $COLOR, \"description\": \"**$RELEASE_TYPE**\nNew Nitro testnode version\", \"footer\": {\"text\": \"OffchainLabs/nitro-testnode\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+              echo "Notification sent for $TAG!"
+            fi
+          done
+          echo "Check completed."
+
+  check-nitro-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check nitro-contracts releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/nitro-contracts/releases?per_page=1")
+          NOW_TS=$(date +%s)
+
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PRERELEASE=$(echo "$RELEASE" | jq -r '.prerelease')
+
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+
+            if [ "$PRERELEASE" = "true" ]; then
+              RELEASE_TYPE="Pre-release"
+              COLOR=15844367
+            else
+              RELEASE_TYPE="Release"
+              COLOR=15105570  # Orange
+            fi
+
+            echo "Found: $TAG ($RELEASE_TYPE) - published $DIFF_HOURS hours ago"
+
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              echo "New release detected! Sending notification for $TAG..."
+              curl -X POST "$DISCORD_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"nitro-contracts $TAG\", \"url\": \"$URL\", \"color\": $COLOR, \"description\": \"**$RELEASE_TYPE**\nNew Nitro contracts version\", \"footer\": {\"text\": \"OffchainLabs/nitro-contracts\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+              echo "Notification sent for $TAG!"
+            fi
+          done
+          echo "Check completed."
+
+  check-wasmer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check wasmer releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/wasmer/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"wasmer $TAG\", \"url\": \"$URL\", \"color\": 9807270, \"description\": \"New OffchainLabs wasmer version\", \"footer\": {\"text\": \"OffchainLabs/wasmer\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
+
+  check-softfloat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check SoftFloat releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/SoftFloat/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"SoftFloat $TAG\", \"url\": \"$URL\", \"color\": 9807270, \"description\": \"New OffchainLabs SoftFloat version\", \"footer\": {\"text\": \"OffchainLabs/SoftFloat\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
+
+  check-stylus-sdk-c:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check stylus-sdk-c releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/stylus-sdk-c/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"stylus-sdk-c $TAG\", \"url\": \"$URL\", \"color\": 6323595, \"description\": \"New Stylus C SDK version\", \"footer\": {\"text\": \"OffchainLabs/stylus-sdk-c\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
+
+  check-stylus-sdk-bf:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check stylus-sdk-bf releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/stylus-sdk-bf/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"stylus-sdk-bf $TAG\", \"url\": \"$URL\", \"color\": 16711680, \"description\": \"New Stylus Brainfuck SDK version\", \"footer\": {\"text\": \"OffchainLabs/stylus-sdk-bf\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
+
+  check-nitro-precompile-interfaces:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check nitro-precompile-interfaces releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OffchainLabs/nitro-precompile-interfaces/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"nitro-precompile-interfaces $TAG\", \"url\": \"$URL\", \"color\": 9807270, \"description\": \"New Nitro precompile interfaces version\", \"footer\": {\"text\": \"OffchainLabs/nitro-precompile-interfaces\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
+
+  # External dependencies
+  check-brotli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check brotli releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/google/brotli/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"brotli $TAG\", \"url\": \"$URL\", \"color\": 4285956, \"description\": \"[External] New Google brotli version\", \"footer\": {\"text\": \"google/brotli\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
+
+  check-openzeppelin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check openzeppelin-contracts releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/OpenZeppelin/openzeppelin-contracts/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"openzeppelin-contracts $TAG\", \"url\": \"$URL\", \"color\": 4934475, \"description\": \"[External] New OpenZeppelin contracts version\", \"footer\": {\"text\": \"OpenZeppelin/openzeppelin-contracts\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
+
+  check-safe-smart-account:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check safe-smart-account releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/safe-global/safe-smart-account/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"safe-smart-account $TAG\", \"url\": \"$URL\", \"color\": 1752220, \"description\": \"[External] New Safe smart account version\", \"footer\": {\"text\": \"safe-global/safe-smart-account\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
+
+  check-wasm-testsuite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check WebAssembly testsuite releases
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/WebAssembly/testsuite/releases?per_page=1")
+          NOW_TS=$(date +%s)
+          echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
+            TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+            PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+            URL=$(echo "$RELEASE" | jq -r '.html_url')
+            PUBLISHED_TS=$(date -d "$PUBLISHED" +%s)
+            DIFF_HOURS=$(( (NOW_TS - PUBLISHED_TS) / 3600 ))
+            echo "Found: $TAG - published $DIFF_HOURS hours ago"
+            if [ "$DIFF_HOURS" -lt 11 ]; then
+              curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
+                -d "{\"embeds\": [{\"title\": \"wasm-testsuite $TAG\", \"url\": \"$URL\", \"color\": 6570404, \"description\": \"[External] New WebAssembly testsuite version\", \"footer\": {\"text\": \"WebAssembly/testsuite\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+            fi
+          done
