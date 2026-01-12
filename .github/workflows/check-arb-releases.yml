@@ -395,7 +395,7 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          RELEASES_JSON=$(curl -s "https://api.github.com/repos/safe-global/safe-smart-account/releases?per_page=1")
+          RELEASES_JSON=$(curl -s "https://api.github.com/repos/safe-fndn/safe-smart-account/releases?per_page=1")
           NOW_TS=$(date +%s)
           echo "$RELEASES_JSON" | jq -c '.[]' | while read -r RELEASE; do
             TAG=$(echo "$RELEASE" | jq -r '.tag_name')
@@ -406,7 +406,7 @@ jobs:
             echo "Found: $TAG - published $DIFF_HOURS hours ago"
             if [ "$DIFF_HOURS" -lt 11 ]; then
               curl -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" \
-                -d "{\"embeds\": [{\"title\": \"safe-smart-account $TAG\", \"url\": \"$URL\", \"color\": 1752220, \"description\": \"[External] New Safe smart account version\", \"footer\": {\"text\": \"safe-global/safe-smart-account\"}, \"timestamp\": \"$PUBLISHED\"}]}"
+                -d "{\"embeds\": [{\"title\": \"safe-smart-account $TAG\", \"url\": \"$URL\", \"color\": 1752220, \"description\": \"[External] New Safe smart account version\", \"footer\": {\"text\": \"safe-fndn/safe-smart-account\"}, \"timestamp\": \"$PUBLISHED\"}]}"
             fi
           done
 

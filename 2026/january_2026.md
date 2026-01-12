@@ -1,3 +1,9 @@
+# 12 - 01 - 2026
+
+- Well today I found that the repo `safe-smart-account` moved from `https://github.com/safe-global/safe-smart-account/` to `https://github.com/safe-fndn/safe-smart-account/`, looks like they moved some repos to a new fundation `https://safe.global/` -> `https://safefoundation.org/` and they referenced also the x account `https://x.com/safefndn`.
+- 
+
+
 # 09 - 01 - 2026
 
 - Okay I am going to mirror offchainlabs repos and keep track of the main branches so:
