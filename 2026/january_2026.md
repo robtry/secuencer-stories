@@ -1,7 +1,190 @@
+
+# 16 - 01 - 2026
+
+I haven't used foundry before and looks like a great tool for blockchain development. Continuing with the deployment process:
+
+1. create a set of 4 walleets
+1. fund de owner address
+1. `make build-reply-env` this will create the `machine.wavm.br` and `module-root.txt` in `target/machines/latest/machine.wavm.br`: the execution machine of L2 compiled to wasm and compressed with brotli.
+1. in `contracts` repo `cp scripts/config.example.ts scripts/config.stagenet.ts` and modify the `config.ts` with the new chainid, adresses and values. There are many configs there and it looks like there something called proxy to update those values in the future without redeploying everything.
+
+
+
+
+# 15 - 01 - 2026
+
+Well looks like each GO PROC takes around 24gb of ram, so with 32gb ram computer only 1 proc can run.
+
+I am going to add more swap:
+
+```sh
+sudo fallocate -l 16G /swapfile2
+sudo chmod 600 /swapfile2
+sudo mkswap /swapfile2
+sudo swapon /swapfile2
+# verify
+free -h
+```
+
+Okay I am going to try with `GOMAXPROCS=2 make -j1 test-go`
+
+- Today I found the notice that even linus torvalds is using AI haha, he was reluctant at the beginning but finally accepted it. To be honest this make feel better about using AI tools for coding.
+
+- Talking about test it worked with `GOMAXPROCS=2 make -j1 test-go` but pretty slow, I ncrease even more the swap and try with `GOMAXPROCS=4 make -j2 test-go` and lets see how it goes, specially in this RAM crisis period.
+
+Dam even `GOMAXPROCS=2 make -j1 test-go` make my computer unresponsive. Well run this test is going to be painfull until I get a better computer.
+
+Lets continue with smart contracts and necesary configs for rebrand. For now I will not use eth testnet, I am going to go directly to eth mainnet, but it is going to be a test so a testnet on mainnet which I am going to call it a stagenet. And later on I will make teset on testnet.
+
+About the chainid, looks like there are 3 main sources of chain id list:
+
+- [chainlist.org](https://chainlist.org/)
+- [ethereum-lists/chains]( https://github.com/ethereum-lists/chains)
+- [chainid.network](https://chainid.network/)
+
+This will be important when I deploy to mainnet, in order to make everyone know about the new chain (later).
+
+- Chain id for stagenet: `662201`
+
+
+
+# 13 - 01 - 2026
+
+I am still not used to work using submodules, so in order to update a submodule to a new commit, I have to go to the submodule folder, checkout the desired commit, and then go back to the main repo and commit the change.
+
+```sh
+cd nitro-testnode
+git fetch origin
+git checkout <new-commit-or-branch>
+cd ..
+git add nitro-testnode
+git commit -m "Update contracts submodule to new commit"
+git push
+```
+
+Just to make sure run again `make build` and `docker build -t capu-nitro:latest .` to verify that everything works fine.
+
+It does. Now lets try:
+
+```sh
+cd nitro-testnode
+./test-node.bash --init --dev
+```
+
+And it works fine too. 
+
+
+```log
+INFO [01-14|18:27:34.097] created jwt file                         filename=/home/user/.arbitrum/jwtsecret
+INFO [01-14|18:27:34.097] Running Capu nitro node                  revision=development vcs.time=development
+```
+
+But looks like it is still using `.arbtrum` in the folder. So lets `rg '\.arbitrum'` to see where this name is used. And try again.
+
+```sh
+cd nitro-testnode
+./test-node.bash --init --dev --build # to test everything (build included)
+```
+
+It takes sometime and trigger fans, but finally in the `nitro-testnode-sequencer` I see the logs:
+
+```log
+INFO [01-14|19:38:08.511] created jwt file                         filename=/home/user/.capu/jwtsecret
+INFO [01-14|19:38:08.511] Running Capu nitro node                  revision=development vcs.time=development
+```
+
+Finally just to make sure everything is working fine, lets run the test suite, again good code organization, everything is in `Makefile`. But first you need to install a lot of dependencies, check [!./guides/01-setup-env.md](./guides/01-setup-env.md)
+
+```sh
+make test-all # this will trigger your fans :) and take some time
+```
+
+Woops looks like some test break my terminal hahah and I cant not see where does it fails. Lets run one by one to find the problem. Dam I cant belive I am going to need more resources to develop in this project.
+
+`-j <N>` flag is to limit the number of parallel jobs. Lets see if this maybe helpfull.
+
+```sh
+make clean 
+make -j6 build-node-deps # ok
+make -j6 test-go-deps # ok
+make -j6 test-go # failed
+make -j6 test-rust # pending
+make -j4 test-go-challenge
+make -j4 test-go-stylus
+make -j4 test-gen-proof
+```
+
 # 12 - 01 - 2026
 
 - Well today I found that the repo `safe-smart-account` moved from `https://github.com/safe-global/safe-smart-account/` to `https://github.com/safe-fndn/safe-smart-account/`, looks like they moved some repos to a new fundation `https://safe.global/` -> `https://safefoundation.org/` and they referenced also the x account `https://x.com/safefndn`.
-- 
+- Nvm git does automatic redirects when a repo is moved, so no problem there.
+- I didn't explain next steps for rebrand so here it goes:
+
+After the mirror for nitro and nitro-contracts, udpate `.gitmodules` to point to the new repos in gitea.
+
+```sh
+git submodule sync
+git submodule update --init --recursive
+make build # this will trigger your fans :)
+```
+
+We can talk about `Makefile` now, around 600 lines, the `build` command triggers a build chain of `yarn`, compile contracts, compile go bindings, brotli, cbingind, rust, jit, go binaries.
+
+I had to make a fix, not sure how do this works for them, I see there prs about `lint_on_build = false` for `foundry.toml` in contacts repo [here](https://github.com/OffchainLabs/nitro-contracts/pull/408/files#diff-bac743fe3d899998e32393af53af8cc7d28c89c3d7fabfa48b01361cf8d42d9b) so eventually it will get merged.
+
+So applied the fix to `contracts`, `contracts-legacy` and `contracts-local`.
+
+Make `git clone` for first time in another computer, and found some problems with submodules, I think I am not being fan of submodules. Well here are the steps:
+
+```sh
+git clone --recursive <>
+cd nitro
+git checkout develop
+git submodule sync --recursive
+git submodule update --recursive
+make build
+```
+
+Finally when the build succeeds we can find the binaries in `target/bin/` folder. The principal of course is `./target/bin/nitro --help`.
+But there are other useful binaries like: `nitro-val`, `relay`, `deploy`, `da-server`, `el-proxy`, etc.
+
+Before configuring `arbitrum_chain_info.json` for real mainnet o testnet deployment, I am going to test it locally. Lets build now using docker.
+
+```sh
+docker build -t capu-nitro:latest .
+```
+
+Now its time to modify `nitro-testnode` repo, basically the same mirror commands, and point to my custom nitro.
+
+Change my custom contract version
+
+```sh
+# test-node.bash
+DEFAULT_NITRO_CONTRACTS_VERSION="custom-branch-or-commit"
+```
+
+Just face the problem that docker clones public repo, but for now my fork the repos are private, so I am going to need to copy code instead of cloning.
+
+But `nitro-testnode` its a submodule and it should work alone. Since docker is its own enviroment I need to bridge my ssh key or somehow give access to the repo.
+
+The other option is that we are going to have the limitation that you can only run `nitro-testnode` only from nitro and not in the submodule.
+I think I am going to go with this last option for now, since I am going to be the only one making changes to the codebase.
+
+```yml
+# nitro-testnode/docker-compose.yml
+rollupcreator:
+  context: ../  # instead of cloning, use the parent folder
+  dockerfile: nitro-testnode/roullupcreator/Dockerfile
+```
+
+```Dockerfile
+# roullupcreator/Dockerfile
+
+# RUN git clone --no-checkout contracts
+# git checkout 
+# git submodule update --init --recursive 
+COPY contracts ./
+```
 
 
 # 09 - 01 - 2026
@@ -52,7 +235,7 @@ git submodule status # to see the commit references
 
 Then created my custom branches for those submodules, since they do no have tags in the commits they are using. And actually I am worried about future updates, but well since the change y this repo is minimal (just one file) for now. A cherry pick is going to be enough.
 
-- Apply the same mirror process to `nitro`. And lets continue
+- Apply the same mirror process to `nitro`. And lets continue.
 
 
 # 08 - 01 - 2026
