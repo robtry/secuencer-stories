@@ -1,14 +1,351 @@
+# 23 - 01 - 2026
+
+Well I am still pending to test the validator role and make a false tx to be challenged. I just wanted to live that process haha.
+Also test the withdraw process from l2 to l1.
+
+Now, I am facing some problems, the objective of this proyect is to offer a l2 with low gas fees, even to point that under certain conditions gas fees are 0 (okay it could be). And another feature that I need to implement is to be able to pay gas fees with another tokens, not only eth. A bunch of tokens. (at least 3 plus eth).
+
+The second one looks harder than the first one. But looks like solving that one I will be able to check or partially solve the first one.
+
+Lets explain what I have found:
+
+- It is posible to pay gas with a custom token. ONLY 1 token by default. Has to be a erc20 token under certain conditions.
+- However the gas fee is calculated in a exchange rate l1 terms. This make sense since the base is l1 gas fees, there is where the settlement is done. In other words "fees must be converted to the parent chain's token for data availability costs"
+- This make me question: what if the custom token has no value?:
+
+Arb has documentation about this [choose custom gas token](https://docs.arbitrum.io/launch-arbitrum-chain/features/common/gas-and-fees/choose-custom-gas-token). And the advert that "Significant prices declines, could lead to operational deficits"
+
+- Its really hard to change the token once its deployed.
+- Also existing smart contracts that asume eth will need to be adapted, definitly we need to accept eth as gas fee token too.
+- The sequencer do no swaps itself, so if the custom token has no value, the sequencer will not be able to pay l1 gas fees. So someone need to swap those tokens to eth and fund the sequencer address with eth.
+
+Here I found some options (not all of them are useful for me or my case but I want to compare them):
+
+- **op 1**: Subsidize eth settlement gas, however the user still needs to have some capu token in order to make txs. And I am sure that subsidizing eth is not going to be sustainable or somehow could be a problem.
+- **op 2**: Use a token with value, for example usdc.
+- **op 3**: Avoid the posting fee usign anytrust instead of rollup but this option make the protocol less secure.
+- **op 4**: EIP-4337 account abstraction, this is a new concept that I need to explore more in depth. Also looks like this need anothe type of wallet (supported by this nitro version). And looks like I have to check the EIP-7702
+- **op 5**: I can set `setL1BaseFeeEstimate(0)` thus the user will only pay for l2 execution gas fees. I will need to pay eth settlemet.
+- **op 6**: Create a custom mecanism to swap capu tokens to eth in order to fund the sequencer address. This could be done using a DEX or a CEX. However this mecanism could be complex and could introduce new risks.
+
+Found the code part where I could change the transaction conditions `arbos/extra_transaction_checks.go`
+
+- https://docs.arbitrum.io/launch-arbitrum-chain/configure-your-chain/common/gas/use-a-custom-gas-token-rollup
+- https://docs.arbitrum.io/launch-arbitrum-chain/configure-your-chain/common/gas/gas-optimization-tools
+
+# 22 - 01 - 2026
+
+Continuig with the deploy of nodes, I keep updating in the guides folder, a lot of new commands that I've discovered while configuring the sequencer.
+
+And also time to explore the new concept of `bridges`:
+
+- Brige is a mechanisms to move actives between l1 and l2.
+- You lock eth on l1 and use in l2, when you burn it in l2 it can be freed in l1.
+- User sends eth to a l1 bridge contract. Then l1 contract creates a message to l2 bridge contract.
+- Sequencer reads the message and credits the user in l2. But the real eth is locked in l1 bridge contract.
+- For withdraws the user creates outbox message to l1 bridge contract.
+- Waits for challenge period.
+- After challenge period the user can call l1 bridge contract to free the eth.
+
+This is different from stake token.
+
+Okay so I send a txs to the inbox contract to bridge some eth but I found some interesting things:
+
+1. batch poster config
+
+```json
+  "batch-poster": {
+    "max-delay": "30m",
+    "max-size": 100000,
+    "compression-level": 11
+  }
+```
+
+- `max-delay`: maximum time to wait before posting a batch, even if not full. When its full automatically posts.
+- `max-size`: maximum size in bytes of a batch. When reached automatically posts. So it do not waits `max-delay`. The higher less batches but more delay, the lower more batches but less delay.
+- `compression-level`: brotli compression level, from 0 to 11. Higher is better compression but slower. This is the max level. There is no reason to use lower levels unless you want faster compression with less efficiency.
+
+`max-size` and `compression-level` where not configured the use the default values.
+
+Also useful commands to debug contracts. I am going to put them in the guides. In cast.
+
+About those configurations are  differets from the ones in `contracts/scripts/config.ts` those are the ones that cant be changed after deployment (later). Are publci because the other ones are privates and in this way is the anti-censorship mecanism. Those are the security rules.
+
+About contracts and roles, now is more clear for me:
+
+**L1 Contarcts**:
+
+- Inbox: recibe deposits from users.
+- Bridge: locks funds and creates messages to l2.
+- Outbox: processes messages from l2 to l1.
+- Sequencer Inbox: Recibe batches
+- Rollup Proxy: status rollup
+
+**L2 Nodes**:
+
+- Sequencer: get txs, order them, create batches.
+- Batch poster: read l2 blocks, compres and post batches to l1 sequencer inbox.
+- Delayed sequencer: read l1 inbox messages, process them in l2.
+- Validator: needs stake token and post assertions to rollup proxy
+
+
+Perfect so for now everyone can bridge eth which is the gas fee token. And we should be able to use my l2. I officially were able to bridge capu.eth to l2.
+
+# 21 - 01 - 2026
+
+Okay it worked and cost 0.33 eth in sepolia, give a output `deploy.json` and `l2_chain_info.json` in the `contracts` folder.
+Those files are not commited, however they have no sensitive information.
+
+I have to check a place to run my tests and also try to configure the sequencer.
+
+I am going to be writing the steps in ![./guides/05-sequencer.md](./guides/05-sequencer.md) so I dont repeat them here.
+
+Pretty obvios but I will need a eth daemon rcp. Three main reasons:
+
+1. batch poster: to publish batches
+2. sequencer: read l1 direct deposits
+3. validators: to read l1 state and compare
+
+# 20 - 01 - 2026
+
+Today I feel more energized, keep continue yesteraday was hard hahaha.
+
+1. First issue: The deploy ignores my max gas limit, this is because the deployt script creates its own provider:
+
+```ts
+// scripts/local-deployment/deployCreatorAndCreateRollup.ts
+const deployerWallet = new ethers.Wallet(
+    deployerPrivKey,
+    new ethers.providers.JsonRpcProvider(parentChainRpc)
+  )
+```
+
+Not yet sure why they create a new provider insted of using the one from hardhat config that already has the gas limits.
+
+I am going to change this limits too in the deploy script:
+
+Option 1:
+```ts
+const provider = new ethers.providers.JsonRpcProvider(parentChainRpc, {
+    maxPriorityFeePerGas: ethers.utils.parseUnits('0.1', 'gwei'),
+    maxFeePerGas: ethers.utils.parseUnits('0.6', 'gwei'),
+  })
+```
+
+However looks like there are more places where I need to set gas limits.
+
+But first may be interesting to deploy to some testnet or mocknet to see how much gas it uses. For future reference.
+
+Back here again, I tried to run without setting gas limits and no matter how much eth I put in the deployer address it always run out of gas but only for the rollupCreator. (You will see my attemps in step 3).
+
+Option 2: for now I am going to set gas limits directly in the createRollup function:
+
+```ts
+// /scripts/rollupCreation.ts
+const createRollupTx = await rollupCreator.createRollup(deployParams, {
+       value: feeCost,
+       gasLimit: 7750000,
+     })
+const createRollupReceipt = await createRollupTx.wait()
+```
+
+2. I also didn't change this variable `isDevDeployment -> false` for the script in `scripts/local-deployment/deployCreatorAndCreateRollup.ts` in order to make it read my config.ts file. But if I change this variable the testnode may break since it deploy contracts too.
+
+Lets see for the test-node in `nitro-testnode/test-node.bash` the docker-compose command injects `-e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode`
+
+I dont want to mess whith other repo so a simple change for my deployment:
+
+```ts
+// scripts/local-deployment/deployCreatorAndCreateRollup.ts : 92
+
+process.env.IS_DEV_DEPLOYMENT !== 'false'
+
+```
+
+```env
+IS_DEV_DEPLOYMENT=false
+```
+
+`false` is not different from `false` so the value sent is going to be `false` (its not dev deployment). And for testnode `undefined` is not equal to `false` so the value is going to be `true` (its dev deployment). Perfect.
+
+
+3. Not an issue but a fact is that I will not test directly in mainnet, actually I didnt want but others ecouraged me to do it hahaha.
+And I dicoveres a feutre of hardhat that I didnt know before, the forking feature. So I can test in mainnet fork first.
+This is different from testnet or mocknet since I will be using real mainnet state. I think I am going to be using this feature a a lot.
+
+```sh
+cd contracts
+npx hardhat node --fork <RPC-URL> --no-deploy
+
+# in another terminal
+curl -X POST http://localhost:8545 -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","method":"hardhat_setBalance","params":["OWNER_ADDRESS","0x56BC75E2D63100000"],"id":1}' 
+# 0x56BC75E2D63100000 is 100 eth in hex
+
+PARENT_CHAIN_RPC=http://localhost:8545 npx hardhat run scripts/local-deployment/deployCreatorAndCreateRollup.ts --network localhost
+```
+
+Damm error again:
+
+```log
+eth_sendRawTransaction
+  Contract call:       RollupCreator#createRollup
+  Transaction:         0xeba2073907f43e14ba79dbb68e9b8650b486cda561c07d8662d6871cfaee7289
+  From:                0x8b36f5a6f4e88c3a98598b92b28178b772c2d2a7
+  To:                  0xe9e70a82e1bca739a8f1abbbfc96ae0f3b709151
+  Value:               0.13 ETH
+  Gas used:            7687989 of 7687989
+  Block #24278540:     0xac318059db535a0068d66e32154cbbd6ed54eb605983a9bf5881c5c86cee8cc0
+
+  TransactionExecutionError: Transaction ran out of gas
+```
+
+And it is `Transaction ran out of gas` again. Hahahahah this is personal now, even fake eth in forked mainnet is not enough for me... this should be a joke.
+Read that hardhat fork has do no calculate gas instead sets high ammounts by default.
+
+Lets add 100M fake eth to the deployer address:
+`curl -X POST http://localhost:8545 -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"hardhat_setBalance","params":["ADD","0x52B7D2DCC80CD2E4000000"],"id":1}'`
+
+And again ... same error. Its not about how much eth I put there its about gas limits.
+
+```ts
+// scripts/rollupCreation.ts
+const createRollupTx = await rollupCreator.createRollup(deployParams, {
+       value: feeCost,
+       gasLimit: 7750000,
+     })
+     const createRollupReceipt = await createRollupTx.wait()
+```
+
+and finally got:
+
+```log
+Congratulations! 🎉🎉🎉 All DONE! Here's your addresses:
+```
+
+With that gas limit it costed `0.368` fake eth in mainnet fork.
+
+Well this make me think that probably is the same stuff in mainnet its about gas limits. That I looks like I still do not know, how does gas works.
+
+Lets try for sepolia with no changes
+
+```env
+PARENT_CHAIN_RPC=<>
+PARENT_CHAIN_ID=11155111
+STAKE_TOKEN_ADDRESS=0xfff9976782d46cc05630d1f6ebab18b2324d6b14 # WETH sepolia
+```
+
+```sh
+cd contracts
+npx hardhat run scripts/local-deployment/deployCreatorAndCreateRollup.ts --network sepolia
+```
+
+Lets wait to get enough eth in sepolia faucet.
+
+
+# 19 - 01 - 2026
+
+Dam its really hard for me to get the same entusiasm on mondays. It is suppoused that today its the clasic "blue monday", for me every monday is blue hahaha.
+
+Okay I couldn't finish the deployment because hardhat set a high ammount of gas for the deployment for smart contracts, so as a permanent advice:
+
+    always remember to set manually a maximun gas fee limit when deploying to mainnet.
+
+I looked for some test eth, looks like some internet places give them for free (a few) and others sell them.
+
+Now I have a quicknode paid rpc to avoid some weird limits.
+
+If this deployment fails to work, I will try to deploy in a eth testnet first. I dont want to burn more real eth. `.env` file for stagenet:
+
+```env
+CHILD_CHAIN_NAME=capu-stagenet
+DEPLOYER_PRIVKEY=# privkey remove 0x, signs tx in script
+MAINNET_PRIVKEY=# privkey remove 0x, signs tx in hardhat
+PARENT_CHAIN_RPC=# l1 rpc script
+MAINNET_RPC_URL=# l1 rpc hardhat
+PARENT_CHAIN_ID=1
+STAKE_TOKEN_ADDRESS=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 # WETH
+ETHERSCAN_API_KEY=# hardhat verify contracts
+```
+
+and the most importan config in `hardhhat.config.ts` is:
+
+```ts
+{
+maxPriorityFeePerGas: 100000000,  // 0.1 gwei
+maxFeePerGas: 600000000, // 0.6 gwei
+}
+```
+
+Finally within `contracts` folder run:
+
+```sh
+npx hardhat run scripts/local-deployment/deployCreatorAndCreateRollup.ts --network mainnet
+```
+
+Daaam ... something went wrong again... The deployment failed because of insufficient funds. I think I need to fund more the deployer address. But I already put more than 0.1 eth... Looks like the deployment ignores my gas limits.
+Well I have to learn somehow that mainnets are painfull to work with hahaha. So my next try is going to be in testnet first, I also saw another errors. Which of course could be preferable to test in testnet first.
+
+
 
 # 16 - 01 - 2026
 
 I haven't used foundry before and looks like a great tool for blockchain development. Continuing with the deployment process:
 
+Well for the deployment they use hardhat instead, I've used hardhat before so no problem there.
+
 1. create a set of 4 walleets
 1. fund de owner address
 1. `make build-reply-env` this will create the `machine.wavm.br` and `module-root.txt` in `target/machines/latest/machine.wavm.br`: the execution machine of L2 compiled to wasm and compressed with brotli.
-1. in `contracts` repo `cp scripts/config.example.ts scripts/config.stagenet.ts` and modify the `config.ts` with the new chainid, adresses and values. There are many configs there and it looks like there something called proxy to update those values in the future without redeploying everything.
+1. in  `contracts` run `pnpm i` I prefer pnpm over npm or yarn.
+1. in `contracts` repo `cp scripts/config.example.ts scripts/config.stagenet.ts` and modify the `config.stagenet.ts` with the new chainid, adresses and new to changevalues. There are many configs there and it looks like there something called proxy to update those values in the future without redeploying everything. But not sure at all (later).
 
+```json
+baseStake: 0.001,
+wasmModuleRoot: 'hash'
+owner: '0x...',
+loserStakeEscrow: '0x...',
+chainId: 662201,
+InitialChainOwner: '0x...',
+validatorAfkBlocks: * 3,
+miniStakeValues: [
+      0,
+      ethers.utils.parseEther('0.0005'),
+      ethers.utils.parseEther('0.00025'),
+    ],
+validators: [
+      '0x...'
+    ],
+batchPosters: [
+      '0x...'
+    ],
+batchPosterManager: '0x...',
+```
 
+Make sure to run `cp config.stagenet.ts config.ts` before deploying. Because the deploy script uses `config.ts`.
+
+Deploy command:
+
+```sh
+npx hardhat run scripts/local-deployment/deployCreatorAndCreateRollup.ts --network mainnet
+```
+
+As usaual the env variables requiered for deployment are in `hardhat.config.ts` so we need a `.env` file in `contracts` folder like this:
+
+```env
+CHILD_CHAIN_NAME=capu-stagenet
+DEPLOYER_PRIVKEY=#privkey remove 0x
+PARENT_CHAIN_RPC= # rpc
+PARENT_CHAIN_ID=1
+STAKE_TOKEN_ADDRESS=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+```
+
+For RPC I am going to use a free one. For STAKE_TOKEN_ADDRESS I am going to use WETH address in mainnet. I think I am going to need to redeploy soon if I want to use another token for staking. Probaly this is part of the changes that do require a full redeploy.
+For now will chose WETH.
+
+Well for hardat deployments its usefull to have an account a apikey in [etherscan](https://etherscan.io/) in order to verify the contracts after deployment.
+
+Woops something went wrong... The contracts werent deployed (not all of them).
 
 
 # 15 - 01 - 2026
@@ -45,7 +382,6 @@ About the chainid, looks like there are 3 main sources of chain id list:
 This will be important when I deploy to mainnet, in order to make everyone know about the new chain (later).
 
 - Chain id for stagenet: `662201`
-
 
 
 # 13 - 01 - 2026
@@ -113,6 +449,7 @@ make -j4 test-go-challenge
 make -j4 test-go-stylus
 make -j4 test-gen-proof
 ```
+
 
 # 12 - 01 - 2026
 

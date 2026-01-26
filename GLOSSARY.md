@@ -26,3 +26,7 @@ A hard fork is a significant change to a blockchain protocol that is not backwar
 ## Faucet
 
 A faucet is a website or application that dispenses small amounts of cryptocurrency to users for free. Faucets are often used as a way to introduce new users to a particular cryptocurrency or blockchain network, allowing them to obtain a small amount of the currency without having to purchase it.
+
+## Keystore
+
+A keystore is a secure storage mechanism used to store cryptographic keys, such as private keys used for signing transactions in blockchain networks. Keystores are designed to protect sensitive key material from unauthorized access, ensuring that only the owner of the keys can use them.
