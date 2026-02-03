@@ -61,3 +61,5 @@ In sepolia cost around 0.33 ETH.
 It will create `deploy.json` and `l2_chain_info.json` in the `contracts` folder.
 
 Those file are needed to configure the sequencer, validators and other nodes.
+
+6. 

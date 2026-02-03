@@ -30,3 +30,6 @@ A faucet is a website or application that dispenses small amounts of cryptocurre
 ## Keystore
 
 A keystore is a secure storage mechanism used to store cryptographic keys, such as private keys used for signing transactions in blockchain networks. Keystores are designed to protect sensitive key material from unauthorized access, ensuring that only the owner of the keys can use them.
+
+# ABI Encoding
+ABI (Application Binary Interface) encoding is a method used to encode and decode data in Ethereum smart contracts. It defines how data structures and function calls are represented in binary format, allowing for communication between smart contracts and external applications. ABI encoding is essential for interacting with smart contracts, as it ensures that data is correctly formatted for execution on the Ethereum Virtual Machine (EVM). Cosmos uses protobuf for similar purposes.

@@ -1,3 +1,197 @@
+# 30 - 01 - 2026
+
+So far It was just about wallets, but there are other actors involved in the EIP. We still need to explore: `bundler`, `entry point` and `paymaster`. And more important how do you handle the gas fees.
+
+About `bundler`:
+
+Get signed user operation from the users. This happens offchain. This is another server that I need to run.
+
+- if its the first user tx to the entry point, the bundler will first deploy the smart contract wallet by calling the factory with the parameters provided in the user operation. This is the most expensive part of the tx. for that wallet
+- So the bulder is another actor, its a service that collects userOperations and:
+1. validates them
+2. simulates tx (calls the entry point with the user operation)
+3. add mempool
+4. creates bundles and group txs.
+5. sends them to the entry point contract.
+
+Here came to my mind, why dont just call the entry point directly from the dApp? Why do you need a bundler?
+- Well in order to call the smart contarct you need eth in this case.
+- So the bundler gets tips to include txs faster
+- Batch them to save gas fees.
+- The bundler also takes a fee for its service.
+- Run a bundler is permissionless, anyone can do it. They say that its censorship resistant, since there could be many bundlers.
+
+Since he gets a lot of txs he might be a target of attacks, so he needs to be careful.
+
+
+The next part is `entry point`:
+
+The main part of this protocol, its a singleton.
+So he gets user operations from bundlers, verifies them and executes them.
+If there is no proxy he will also deploy the smart contract wallet.
+- It has a well known address in the blockchain.
+If exists the paymaster it will call it.
+
+And the final and most imporant part (for me) is `paymaster`:
+
+Its another part beacuse the entry point is aimed to be non modifiable. And a entry point can have many paymasters.
+Hence each paymaster can have its own logic to sponsor gas fees.
+He has to has enough funds to pay for the gas fees of the user operations.
+Looks like yes the paymaster can use different tokes but the user has to approve them first.
+
+# 29 - 01 - 2026
+
+Today was about reading a lot about eip 4337, I am going to list all the resources I read:
+
+Of course original EIP:
+- https://eips.ethereum.org/EIPS/eip-4337
+
+Friendly explanations:
+- https://www.alchemy.com/overviews/what-is-a-paymaster
+- https://www.youtube.com/watch?v=89SN9BwvMdw -> they promisse to release open source code of their AA implementation.
+- https://medium.com/@afterdark_labs/eips-explained-eip-4337-e10980b64be4
+
+- https://aws.amazon.com/blogs/web3/build-account-abstraction-wallets-with-alchemy-and-aws-part-2/ -> alchemy implementation in aws
+- https://aws.amazon.com/blogs/web3/build-account-abstraction-wallets-with-aws-and-alchemy/
+- https://www.youtube.com/watch?v=B6sN8EXszP8
+- https://www.ethereum-blockchain-developer.com/advanced-mini-courses/gasless-onboarding-erc2612-erc4337-eip7702
+- https://www.alchemy.com/docs/wallets/low-level-infra/quickstart
+- https://www.alchemy.com/dapps/best/account-abstraction-erc-4337-bundlers
+- https://coinsbench.com/eip-4337-account-abstraction-for-beginners-1157a0562
+- https://www.alchemy.com/overviews/eip-3074-vs-eip-7702-vs-erc-4337
+- https://www.alchemy.com/overviews/how-do-smart-contract-wallets-work
+- https://github.com/coinbase/verifying-paymaster
+
+- https://github.com/alchemyplatform/rundler?tab=readme-ov-file#status -> budnler implementation by alchemy made in rust (constantly updated)
+
+I hadn't understood the concept of "smart accounts" until now (I hope):
+
+- In the resources they are also called `smart contract wallets`, `smart wallets`, `AA wallets`, `smart accounts` or `contract accounts`.
+- The difference with EOAs is that they are smart contracts, to be more precise, they are proxies.
+- Whats the difference between proxy and smart contract? None! both of them are smart contarcts, the difference its that a proxy is a smart contract that delegates calls to another smart contract. its like a middleman a function that forwards calls to another function.
+- Why would you use proxies? and more important what is the real smart contact code that they are executing? Well:
+- Proxies are cheaper to deploy, because you can have many proxies pointing to the same logic contract. Thus tehre only one logic to upgrade.
+- There is another rabithole about proxies, about updating them and changing the logic contract they point to, but I will not go into that now.
+- They are deployed with `CREATE2`, so their address can be known in advance (deterministic address).
+- The code that the proxies point are smatr contarcts that implements the `IAccount` interface defined in eip 4337. Some well known implementations are:
+- - Simple Account by eth-infinitsm: offficial minimal refrence implementation
+- - Safe by Gnosis: most used and more complex
+- - Modular Account by Alchemy: erc 6900 compatible
+- - Biconomy Smart Account by biconomy: nothing outstanding.
+
+So, in simple termns: they are accounts controlled by smart contracts.
+
+But then I still do not understand, you create your wallet but how if they are not EOAs? And also some post claim that with this EIP you can recover your wallet.
+
+- The answer is that in order to create a smart contract wallet (you or the dApp) needs anything it could be anything!, the AA can be created by passkey, multisig, or even the private key of an EOA. Here is where the magic starts:
+
+1. To create the aa wallet you need to call a `factory` contract that will deploy the smart contract wallet for you.
+2. The factory (which is provided by the wallet implementation you choose) will need some parameters to create the wallet, like the owner public key (or keys in case of multisig) and a `salt` to create the deterministic address with CREATE2.
+3. Since they are cretaed with CREATE2 you can know in advance the address of your smart contract wallet.
+
+So if you create a AA wallet with your EOA privte key. You will have two addresses:
+- The EOA address (the one you control with your private key): will own noting.
+- The AA wallet address (the smart contract wallet you just created): this will have the funds.
+
+Of course you can send your funds from you AA wallet to your EOA. Or viceversa.
+You are not tied to use the AA with the entry point (all the stuff and actors of the eip). This is other matter. Thats also anothe reason why there in no implemetation of AA in th eip.
+
+- Actually you can call de AA wallet directly from your EOA, but you will need to pay gas fees in ETH from your EOA. So you will need to have ETH in your EOA to pay for the gas fees of the AA wallet txs. Its only one call and more gas fees beacuse of the actions.
+
+Now everithing here changes If you want to use a EOA:
+
+1. The EOA becomes the smart account itself.
+2. Funds are in the EOA. Actually since there is no proxy the EOA is the smart contract. You have the same address!.
+3. Of course you need to pay gas to send this autorization to delegate. Also this cost lees than deploying the proxy.
+- - The autorization its just a tx type 4, it could go anywhere or do something else.
+4. You can remove delegation at any time. But you need to be careful.
+5. Here the only benefit to use the bundler is that you can pay gas fees with other tokens (not eth). If you already have it probably easier to send directly.
+
+
+# 28 - 01 - 2026
+
+https://docs.arbitrum.io/launch-arbitrum-chain/third-party-integrations/bridged-usdc-standard
+
+https://docs.arbitrum.io/launch-arbitrum-chain/deploy-an-arbitrum-chain/deploying-token-bridge
+
+Arb has most of the complete and friendly documentation that I've seen about l2 solutions. (the onlyone I've seen too hahaha).
+
+Yup the contracts needed for the bridge are: L1GatewayRouter, L1ERC20Gateway, L2GatewayRouter, L2ERC20Gateway etc ... those are different from the ones that are deployed in contracts folder/repo.
+
+The good news is that generic gateway has to be deployed only once.
+
+```sh
+git clone https://github.com/OffchainLabs/arbitrum-chain-sdk.git
+```
+
+I am going to put the next steps un ![./guides/06-bridge-tokens.md](./guides/06-bridge-tokens.md) so I dont repeat them here. But finally we got
+
+- Router (L1 + L2)
+- StandardGateway (L1 + L2)
+- CustomGateway (L1 + L2)
+- WethGateway (L1 + L2)
+- WETH token en L2
+- ProxyAdmin, BeaconProxyFactory, UpgradeExecutor, Multicall (L2)
+
+When I deploy to mainnet its going to be hard manyally veirfy those contracts.
+
+Looks like each time we bridge a new token it creates a proxy which is a smart contract and if detetcs same token address it will reuse the existing proxy.
+
+So finally bridged usdc to l2. Done!.
+
+Now lets mints some tokens simulating usdt, they have to be, mintable, burnable, pausable, permit and blacklist. Another repo.
+
+
+# 27 - 01 - 2026
+
+- I want a script or a place for my test to track eth amoung accounts like a dashboard. Probably I can vibecode it. Of course in the terminal. Worked pretty cool, I didnt know that now with node you can use react. Thanks to the `ink` library. 
+
+I remember that there are different ways to bridge l1 tokens to l2, this maybe relevant for the 4337 account abstraction, the ways are:, the ways are:
+
+1. Standar gateway: lock tokens in l1 gateway contract, then mint them in l2 gateway contract. For withdraws burn in l2 gateway contract and unlock in l1 gateway contract.
+2. Generic custom gateway: the owner token controls logic in l2.
+3. Custom: fully custom logic in l1 and l2.
+
+Perfect so before implement eip-4337 I need to test the withdraw process from l2 to l1. And also test the validator role, make a false tx to be challenged.
+
+Dam my sequencer has an error looks like my quicknode paid rpc still has limites. I am going to run a local sepolia node, seems lighter than mainnet. And I have another computer which can be dedicated to run this daemon. Look like I have to wait 4 hours to sync sepolia. Hmmm I am going to need more, because looks like requires more than 500 gbs, I had to connect another disk for that.
+
+O dam my only available device its a hdd for that but its taking twice the time, I am going to leve it syncing overnight. And run another in a nvme computer. To continue.
+
+Good oportunity to deploy my custom stable tokens for the eip-4337 tests.
+
+Looks like there are usdc faucet tokens https://faucet.circle.com/
+
+I am seeing that bridge another erc20 is not configured by default. Looks like we need to download the SDK. Let me see.
+
+
+# 26 - 01 - 2026
+
+The custom token for gas fees its a really important feature for this project. I need to solve it before deploying to mainnet. And check possible situations:
+
+- **op 1**: use a token with value, for example usdc or usdt.
+- **op 2**: EIP-4337 account abstraction
+- **op 3**: create like "credits" and check them before processing the tx. This is similar to subsidizing gas fees but with more control.
+- **op 4**: modify the contracts to allow multiple tokens
+
+op 1 could be easier, op 2 looks like I will investigate now more in depth, op 3 hmmm I feel like I can mess up the security model, op 4 looks really really hard (up to the point of arbitrum not being the right base for this proyect).
+
+About [EIP-4347](https://eips.ethereum.org/EIPS/eip-4337) account abstraction:
+- Eth has 2 types of accounts: Externally owned accounts (EOAs) and Contract accounts. The firstones are controlled by private keys, the secondones are controlled by code (smart contracts). In other words EOAs are user wallets (mnemonics), contract accounts are smart contracts.
+
+It has multiple parts:
+
+1. UserOperation: a new type of data structure that represents a user's intent to perform an operation on the blockchain. It includes information such as the sender's address, the target contract, the calldata, and the gas limit.
+2. Bundler: collects UserOperations from users, groups them into bundles, and submits them to the blockchain. (This is offchain service).
+3. EntryPoint Contract: smart contract that serves as the entry point for UserOperations. It verifies the validity of UserOperations, executes them, and handles its wellknown address in the blockchains
+4. Smart Contract Wallets: wallets implemented as smart contracts that can interact with the EntryPoint contract to perform operations on behalf of users
+5. Paymaster: a smart contract that can sponsor gas fees for UserOperations, allowing users to perform operations without holding ETH. This logics can be customized.
+
+To be honest this sounds like another kind of l2 solutions, that If I want to implement it will be deployed in my l2.
+
+However I think for now its the most suitable option and probably I can integrate part of the code to the sequencer itself.
+But I have some questions that the only way to answer them is testing it, so lets implement eip-4337 in my l2 testnet and see how it works.
+
 # 23 - 01 - 2026
 
 Well I am still pending to test the validator role and make a false tx to be challenged. I just wanted to live that process haha.
