@@ -49,15 +49,16 @@ Of course original EIP:
 Friendly explanations:
 - https://www.alchemy.com/overviews/what-is-a-paymaster
 - https://www.youtube.com/watch?v=89SN9BwvMdw -> they promisse to release open source code of their AA implementation.
-- https://medium.com/@afterdark_labs/eips-explained-eip-4337-e10980b64be4
+- https://medium.com/@afterdark_labs/eips-explained-eip-4337-e10980b64be4 -> good to know about evolution of aa.
+- https://www.youtube.com/watch?v=B6sN8EXszP8 -> 2 years old explanation, too long.
 
 - https://aws.amazon.com/blogs/web3/build-account-abstraction-wallets-with-alchemy-and-aws-part-2/ -> alchemy implementation in aws
 - https://aws.amazon.com/blogs/web3/build-account-abstraction-wallets-with-aws-and-alchemy/
-- https://www.youtube.com/watch?v=B6sN8EXszP8
 - https://www.ethereum-blockchain-developer.com/advanced-mini-courses/gasless-onboarding-erc2612-erc4337-eip7702
 - https://www.alchemy.com/docs/wallets/low-level-infra/quickstart
 - https://www.alchemy.com/dapps/best/account-abstraction-erc-4337-bundlers
 - https://coinsbench.com/eip-4337-account-abstraction-for-beginners-1157a0562
+- https://www.alchemy.com/overviews/what-is-a-paymaster
 - https://www.alchemy.com/overviews/eip-3074-vs-eip-7702-vs-erc-4337
 - https://www.alchemy.com/overviews/how-do-smart-contract-wallets-work
 - https://github.com/coinbase/verifying-paymaster

@@ -24,7 +24,7 @@ IS_DEV_DEPLOYMENT=false # custom var, need a modification in the deploy scripts
 
 ```
 
-2. Create custom `contracts/scripts/config.ts` the most important stuff to change are the chainId and addresses (whitelist)
+2. Create custom `contracts/scripts/config.ts` the most important stuff to change are the chainId and addresses (whitelist). Also set the right version for `InitialArbOSVersion`
 
 3. Apply to fixes:
 

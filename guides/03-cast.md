@@ -43,3 +43,11 @@ cast balance <ADDRESS> --rpc-url $RPC_L1 --ether
 cast call 0x47a3c5ea5de9aa34d6c22c18e59c927aaa49ee93 "delayedMessageCount()" --rpc-url $RPC_L1
 ```
 
+```sh
+# update version
+cast send 0x0000000000000000000000000000000000000070 \
+    "scheduleArbOSUpgrade(uint64,uint64)" 50 1 \
+    --rpc-url http://localhost:8547 \
+    --private-key <chain_owner>
+```
+
