@@ -1,3 +1,186 @@
+# 20 - 02 - 2026
+
+This was the fisrt time I consume all the tokens available in my claude plan, I had to wait around 2 hours to continue, it could mean one of three things:
+1. I am finally paralelizing the work and consuming more tokens, which is good.
+2. The task I asking for help are more complex and require more tokens, which is also good because I am asking for more complex things. And more important doing real things instead of simple code.
+3. None of the above and this new model version takes more tokens to process the same things.
+
+Today the team has an important showcase. So I couldnt show them my poc.
+It worked and it is fun to be backtracing all the txs and see how the flow works.
+ 
+# 19 - 02 - 2026
+
+So far my conclusions are defintly for running the test I need at least 64 gbs of ram.
+I see that nitro in the CI/CD use:
+
+```sh
+export GOMEMLIMIT=6GiB
+export GOGC=80
+make test-go
+```
+
+With that config I was able to reduce 20gb of ram thus making it possible to run the test with 40 gbs. I am going to phisically reduce the ram and test again using 44 gb to see if is persistent.
+
+- Yup persistent, now I am going to test reducing the cpus to 5.
+
+Today also I am going to debug the vibecoded fronted.
+
+I noticed that those contracts are not verfied in the explorer, but it has a lot of options about hw to verify them many tools that I havent hear before. I am going to use the well know `hardhat`. The contracts are in the aa repo and the other one its the token.
+
+```sh
+npm install --save-dev @nomicfoundation/hardhat-verify@^2 --legacy-peer-deps
+```
+
+in `hardhat.config.ts`
+
+```ts
+import '@nomicfoundation/hardhat-verify'
+
+// config object
+etherscan: {
+  apiKey: {
+    capuchain: 'empty'   // Blockscout do not need it
+  },
+  customChains: [
+    {
+      network: 'capuchain',
+      chainId: 662201,
+      urls: {
+        apiURL: 'http://100.64.0.5/api',
+        browserURL: 'http://100.64.0.5'
+      }
+    }
+  ]
+}
+```
+
+The sintax is `npx hardhat verify --network capuchain <ADDRESS> [constructor args...]`
+
+```sh
+cd repo_code
+# EntryPoint
+npx hardhat verify --network capuchain 0x433709009B8330FDa32311DF1C2AFA402eD8D009
+
+# SimpleAccountFactory (1 arg: entryPoint)
+npx hardhat verify --network capuchain \
+  0xAD07bbb7bEA77E323C838481F668d22864e9F66E \
+  "0x433709009B8330FDa32311DF1C2AFA402eD8D009"
+
+# Simple7702Account (1 arg: entryPoint)
+  "0x433709009B8330FDa32311DF1C2AFA402eD8D009" \
+  "0x8b36F5A6F4e88c3A98598B92B28178b772C2d2a7" \
+  "5000000" \
+  "10000000"
+
+# CapuPaymasterSponsor (4 args: entryPoint, owner, minBalance, maxSponsored)
+
+npx hardhat verify --network capuchain \
+  0x5112FD5fd80455ed7Dd3c5ee67119D1473159E78 \
+  "0x433709009B8330FDa32311DF1C2AFA402eD8D009" \
+  "0x8b36F5A6F4e88c3A98598B92B28178b772C2d2a7" \
+  "5000000" \
+  "10000000"
+
+# FakeUSDT (2 args: recipient, initialOwner)
+cd repo_code_token
+npx hardhat verify --network capuchain \
+  0xbaCa5E7C88D887B61a25b8Bd507Eab9E8e348ee9 \
+  "0x8b36F5A6F4e88c3A98598B92B28178b772C2d2a7" \
+  "0x8b36F5A6F4e88c3A98598B92B28178b772C2d2a7"
+```
+
+About args they need to be same that when they were deployed, they are stored here `deployments/capuchain/*.json`
+
+I noticed that my owner address its not the owner of the EntryPoint (0x433709009B8330FDa32311DF1C2AFA402eD8D009) it is `0x4e59b44847b379578588920cA78FbF26c0B4956C` what is that?
+Well when the hardhat config has `deterministicDeployment: true` it deploys the well known Nick's Factory: https://github.com/Arachnid/deterministic-deployment-proxy
+
+This is something I didnt know the trick for this proxy that works on all the evms and can be deployed with the same address is that the tx is presigned so the address has no txs in the chain hence nonce = 0 and the address is deterministic. So hardhat send some eth to that address to deploy the proxy.
+The address who fund the presinged address is `0x2aE3a2085c469A91A8AceECd388e30168b95FddA` and this addres came since the block 1 so this might be part of arbirum. Its a `DeployHelper`
+
+This a rabit hole of traces tomorrow I am going to make it easier to explain
+
+# 18 - 02 - 2026
+
+Oh no my services are down, my hdd 1tb drive its not enough for eth sepolia eth daemon. Since the sequencer depends on the ethe daemons its not working fine, and also the blockscout for some reason finished redis db and the proxy.
+Well I have no other disk to move the data and I discovered that quicknode also exposes the beacon url. So I am going to use it.
+
+Also see that the blocksout repo has no `restart: unless-stopped` in the docker compose for redis and the proxy. Not sure why, I need to add it.
+
+About running the test I discovered interesting things (pasting this table if more confortable for me):
+
+ | Config                  | Tiempo | Pico RAM | Swap  | Failures | Resultado |
+  |-------------------------|--------|----------|-------|----------|-----------|
+  | 6 cores / 64GB (cache)  | 39min  | 36.9GB   | 0     | 4 flaky  | Pasa      |
+  | 5 cores / 40GB          | 34min* | 39.9GB   | 27MB  | 60       | Falla     |
+  | 5 cores / 44GB          | 2h*    | 43.9GB   | 4GB   | 79       | Falla     |
+  | 6 cores / 44GB          | 27min  | 44GB     | 8GB   | 71       | Falla     |
+  | 5 cores / 49GB          | 46min  | 49.9GB   | 3.5GB | 17       | Falla     |
+  | 6 cores / 49GB          | 33min  | 50.1GB   | 8GB   | 4        | ~Límite   |
+  | 6 cores / 63GB (cache)  | 35min  | 58.4GB   | 0     | 4 flaky  | Pasa      |
+  | 6 cores / 64GB (limpio) | 34min  | 62.2GB   | 0     | 2 flaky  | Pasa      |
+
+That was the reason it ran succesfully with 64 gbs of ram for the first time. And it behaves persistent now, I need 64 ram just for this test.
+
+For the blockscout I see that I can enable 4337 support under `/ops` using `ghcr.io/blockscout/user-ops-indexer:latest`
+
+```sh
+docker compose up -d user-ops-indexer
+docker compose up -d --force-recreate backend
+docker compose up -d --force-recreate frontend
+docker compose up -d --force-recreate proxy
+```
+
+Today I also fullyvibecode a frontend poc, at the beginning the idea was to modify a exisiting open source wallet repo.
+But it was kind of overkill, I just need to demonstrate in a UI the POC of the eip 4337 and eip-7702.
+And I think its also clearer to me. The implementation of the bundler and the sings.
+
+# 17 - 02 - 2026
+
+Now with the previos values I am able to identify clearely the resoucer I am going to need.
+Monitor the test with less resources to avoid surprises.
+
+- GOMAXPROCS=1 took 2 hours and 39.7 gbs peak
+- using 6 cores took 39 minutes and 36.9 gbs peak
+
+Make sense to use less ram using more cores, because it can finish tests faster and free resources, so why I cant run my test with 32 gbs of ram and 16 threads?.
+
+So far this are my conclusions:
+
+| service | cpu | ram | storage |
+| eth sepolia | 2 | 8 | 3 |
+| sequencer, validator and batchposter | 1 | 3 | 0.5 |
+| blockscout | 1 | 2 | 0.1 |
+| bundler | 1 | 1 | 0.1 |
+| test/cicd | 6 | 42 | 1 |
+
+This gives a total of 11 cpus, 56 gbs of ram and 4.7 tbs of storage. Which are reachablevalues for a single machine. Also I am thinking in runnning this with proxmox so pretty good to round up to 16 cpus, 64 gbs of ram and 5 tbs of storage.
+
+Now I am going to check which alternatives I have, for example a tower with single cpu, or a tower with 2 cpus, or multiple minipcs, or something in the cloud.
+
+Well it took a lot of time being navigating on the stores and looking for prices and pieces. Half of the budget goes to ram and storage.
+
+Now with a more clear about requirements, I can present this to the team and ask for the budget to buy the machine.
+
+So now good time to test the frontend proof of concept.
+
+# 16 - 02 - 2026
+
+Well I still have pending to test all the assertions methods.
+
+I am stil waiting for the first assertion, test because it has 6.4 days to be executed.
+
+For this week I can make a test in the fronted side using the bundler, it might be a good test for the integration flow.
+Also its a good time to retry to run the test, I got access to a more powerful machine, so I can run the tests in a more comfortable way and make a list to request for the pc that I am going to need to run all the test and the services.
+
+I am also very happy to took my time implement headscale, now its pretty simple to add more server and handle the permissions, specially for moments like this.
+
+On the other hand I can put in practice one of my guides to install all the depedencies and tools that I need to run the tests.
+
+So It worked very well using 64 gb of ram and 6 cores. The commands to run the tests are in the guides, the most expensive are the go tests.
+I ran the whole suite tests and it worked, I am not sure but I didnt see the ram go beyond 18 gbs, which no make sense.
+
+Then I didnt remember if I was able to run the test with the go flags to use less jobs, So I tried again in the 32 gbs machine and it didnt work. Definitely I need more than 32 gbs to run the tests. Now I want to make sure how much is the less ram I can use.
+
 # 12 - 02 - 2026
 
 I want to see if a wallet like metamask is able to handle my chain and custom tokens.
@@ -75,7 +258,6 @@ BlockValidator initialized  current=8a7513..56a499
 Starting BOLD staker
 Started challenge manager  stakerAddress=0xff09...
 ```
-
 
 # 11 - 02 - 2026 
 

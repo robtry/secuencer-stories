@@ -3,16 +3,16 @@ In order to work in this project there are some basics tools you need to have in
 # Development Environment Setup
 
 - [go](https://go.dev/doc/install) && `go env GOTOOLCHAIN`
-- [cargo](https://www.rust-lang.org/tools/install)
+- [cargo](https://www.rust-lang.org/tools/install) verify rust version
 - [foundryup](https://getfoundry.sh/)
 - git
 - docker
 - nodejs I prefer using [nvm](https://github.com/nvm-sh/nvm)
-- `cmake make gcc`
+- `sudo apt install cmake make gcc`
 
 # Test Environment Setup
 
-- `clang llvm lld`
+- `sudo apt install clang llvm lld wabt cbindgen`
 
 ```sh
 cd /tmp
@@ -30,4 +30,11 @@ rustup target add wasm32-wasip1
 
 ```sh
 go install gotest.tools/gotestsum@latest
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5
 ```
+
+## Incremental Tests:
+
+- `make build test-go-deps`
+- `make lint`
+- `make test-go`
