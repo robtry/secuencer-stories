@@ -1,3 +1,180 @@
+# 27 - 02 - 2026 
+
+Remember when I said that I wan running out of tokens in my claude plan? Well it wasn't my fault https://x.com/trq212/status/2027232172810416493
+
+Lets continue, today the team has another showcase so they couldnt test my code, I think I am going to be making full changes during march.
+So for today I want to make different tests based on this link:
+
+https://www.alchemy.com/dapps/list-of/erc-4337-paymasters-on-ethereum
+
+1. Alchemy Gas Manager: check the viability
+1. Pilmico Paymaster: 
+1. Arka
+1. Biconomy Paymaster
+
+I have to do other tasks beyond this proyect. That took my time. But I am going to keep trying to test the evil val.
+
+# 26 - 02 - 2026
+
+Its time for another evli asertion test, I have to create and stake antother wallet.
+Because my evil its still waiting for the solution. Again some changes and build the image again.
+
+Same config file just different private key. I also had to add those keys for the whitelistmode in the `RollUpProxy` contract, because in the test it verifies that the wallet is whitelisted to be a validator.
+
+And it didnt work `validated execution messageCount=319 globalstate="BlockHash: 0x7dc6ad..."`
+It synced to the tip then evil mode activated and got mistmached hashes, it could create and assertion
+
+Yup I change the hashes and the state its consistant but howerver its different, not sure if the most simple evil test could be just send some tx and post it, let me check
+
+I want to run one more test, but this time trying to make it able to participate in the edge.
+
+`Pre expansion root mismatc` -> move forward but the consistency its still the problem, well another victory for the honest validator.
+
+
+Another attemp was just to create manually a false assertion and send it, of course from a valid and whitelisted validator, but now there is no active validator to executute the step to step.
+
+
+# 25 - 02 - 2026
+
+Still waiting for the assertion, also for the team to test this proyect.
+
+Menawhile in this side story I am still fighting with the evil validator, yesterday I couldn't test it, because it can not generate a bad assertion, cuz changing intermediate hasshes gives the correct final state, this code in the test.
+
+```go
+func (m *IncorrectIntermediateMachine) Hash() common.Hash {
+    h := m.MachineInterface.Hash()
+    if m.GetStepCount() >= m.incorrectStep && m.IsRunning() {
+        h[0] ^= 0xFF
+    }
+    return h
+}
+```
+
+This is helpful but in other step of the process, not to trigger a dispute.
+
+Now to see if I can trigger it I modify `bold_staker.go` and `bold_state_provider.go`. The same process, build, and push also the config changes:
+
+```json
+"bold": {
+  "auto-deposit": true,
+  "auto-increase-allowance": true,
+  "state-provider-config": {
+    "evil-mode": true
+  }
+}
+```
+
+Now corrupting the final state, this works and triggered a dispute, I see a log from the honest validator:
+
+```log
+Disagreed with an observed assertion onchain
+```
+And also he wants to fight:
+
+```log
+Local computed timer not big enough to confirm edge
+```
+
+Something interesting and that I didnt know (but actually makes sense) its that all this cases takes place in the l1.
+
+Also I have two important hashes:
+
+1. Evil assertion hash: `0xdf92c77b8da7a23870e2cefc1316122d7c6b1c5dd3935ce53aedd8439e0dfdfa`
+2. Challenge edge: 0xab68d6d3
+
+So far what I have understand is:
+
+- The challenge edge is a id created by the `ChallengeManager` contract in the l1 to identify the claim made by the honest validator, defending the assertion.
+- So far its like a ring created by the contarct, he puts the edges (I would say states) from the honest vs evil, but before fighting the contratcs verifies the `endHistoryRoot`which of course its different hence give `Invalid inclusion proof`, so It can not fight, the honest validator will win after 6 days. And the evil will lose the stake, all of them.
+- Now that wallet staked can not do anythin because it cant not create another assertion. Its a defensive strategy to avoid delay atack to for validations also its a reason why stake is requiered to create assertions.
+
+
+More details about the timeline of the attack:
+
+1. Honest val creates an assertion: 
+- https://sepolia.etherscan.io/tx/0xa06a6f9bb47f3738f376df733de2ff12e7f5670b2a8e2d19776bae64efa22b59
+
+2. Blocks later evil val creates another assertion:
+- https://sepolia.etherscan.io/tx/0xf47905ba3ecb7e8f0b36d960460ea043be99a339bf46b5e39f0f60b15bb48dff
+
+
+3. Then honest creates edge 0xab68d6d3 via `ChallengeManager`
+- https://sepolia.etherscan.io/tx/0xfe00997c7f1aec5109c764be85d62b706fc0e544290265cb524ec0390fb55428
+
+4. Evil tried to create a challenge and extend the chain but it gives `Invalid inclusion proof` because the end history root is different.
+- https://sepolia.etherscan.io/tx/0x0f6c35c923e315446100860e986460b854207722983a94a3caefef45311c54bf
+
+But the evilts its creating its own chain version, however the honest chain will be posting batches this is a dead branch wating to be killed.
+
+
+# 24 - 02 - 2026
+
+So not matter when I start the withdraw I have to wait around 80 hours for the previos assetions.
+However I am going to start the mine now:
+
+```sh
+cast send 0x0000000000000000000000000000000000000064 \
+  "withdrawEth(address)" \
+  0x8b36F5A6F4e88c3A98598B92B28178b772C2d2a7 \
+  --value 0.01ether \
+  --rpc-url http://100.64.0.5:8547 \
+  --private-key <owner-key>
+```
+
+Its a good time to test the evil validator. For this there is a test that changes the machine hash, thus simulating a bad attemp.
+
+As we can imagine there is no flag or anything custom to do this, why would you like to intentionally lost money. Well fourtunately its pretty simple to add another flag that simulates this, I am going to use another branch for this.
+Done now build with a different tag, I am going to set up a private docker registry in the same server to avoid using my old intermediary where I ran eth sepolia but ran out of space.
+
+Nos I have a to create the config file with this addition:
+
+```json
+"validation": {
+  "arbitrator": {
+    "evil-step": 1
+  }
+},
+```
+
+And lets see how it goes.
+
+
+# 23 - 02 - 2026
+
+So for today I wanted to see if the flags that I added for sequencer and the bundler, in order to avoid a corrupt state after a force shutdown. But the computer didnt have any restart so I have to still wait.
+Also for today I got news that the team is going to start integrating with my solution, I also think could be useful to monitor the stats of the services, also make some stats about the txs the user is doing.
+
+But however good time to check if the test about assertion worked maybe I finally can make a withdraw from l2 to l1, which is something I have not done yet.
+
+```sh
+# 1. check the current value of the challenge period, which is 45818 blocks (~1 week)
+
+cast call 0x77E2752FBCfb3e131B4bc3a5A19C83438387eFEa \
+  "confirmPeriodBlocks()(uint64)" \
+  --rpc-url <url>
+# 45818
+
+# 2. change to 300 blocks around 1h via UpgradeExecutor
+CALLDATA=$(cast calldata "setConfirmPeriodBlocks(uint64)" 300)
+cast send 0x211Cf91bAE977914eAE40D1E4e755C44d76Dc9De \
+  "executeCall(address,bytes)" \
+  0x77E2752FBCfb3e131B4bc3a5A19C83438387eFEa \
+  "$CALLDATA" \
+  --rpc-url <url>
+  --private-key <owner-key>
+# TX: 0xbd281c1a5b0a74b86ca7064d52a6c68d83fc07e3f42e3d68dbd623e991862687
+
+# verify the new value
+cast call 0x77E2752FBCfb3e131B4bc3a5A19C83438387eFEa \
+  "confirmPeriodBlocks()(uint64)" \
+  --rpc-url <url>
+# 300
+```
+
+Then I have to restart the sequencer.
+
+Note: the change will only afect to new assertions, the old ones will still have the old challenge period, so I have to wait until the current assertions are confirme
+
 # 20 - 02 - 2026
 
 This was the fisrt time I consume all the tokens available in my claude plan, I had to wait around 2 hours to continue, it could mean one of three things:
