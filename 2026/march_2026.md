@@ -1,0 +1,303 @@
+# 13 - 03 - 2026
+
+So the script tests passed, but to make this more enjoyable I am going to modify my previos POC using react.
+
+Also clean the workdir whit all the other repos that I had cloned for the research, Pilmico the only one that I am going to keep.
+
+Create branches and commits and save memory for my claude.
+
+
+# 12 - 03 - 2026
+
+Today I got a new task to check the 1 click. 
+
+So far what I know about 1click:
+
+- Its based on near.
+- Its closed source (all the logic) but all the sdks are open source.
+- Its like a order book but better, its more like a request for quote
+- It need solvers for this
+- The most important thing this is for swaps. Like bids to swap anything.
+- Also important to say that NEAR its a blockchain L1 low fees
+
+I tough the integration of 1click was for capu, but not this is a sidequest. For capu its going to be hard to integrate it because even if they support us, we need solvers to pay for the swaps.
+
+The real quest its to check if I can create a 1click abstraction layer, because they created that layer to avoid calling all the endpoints directly, but the also take a percentage as fee. So if I can create a layer that call the 1click endpoints but without the fee, that could be interesting for us and also for other projects.
+
+Hahaha I am very lucky that 6 days ago the https://docs.near-intents.org/integration/distribution-channels/1click-api/authentication release a change:
+
+```txt
+Obtain a JWT token for authenticated API access
+
+Unauthenticated requests incur a 0.2% (20 basis points) platform fee. Authenticated requests using a JWT token are fee-free – you only pay network gas costs and market maker spreads.
+```
+
+About this task my job is done. Pretty lucky this time.
+
+Lets see the result of the vibecoded new paymaster.
+
+- Took desitions that contrary to the ones described in the original plan. Asked to modofy those.
+- Since the task took to many tokens it forgot too many things.
+- Now ask to implement 7702 because he couldnt implement it.
+- And I realize that now my paymaster has modes:
+
+1. Verify: full sponsor, dangerous for prod.
+1. ECR20: ecr20 tokens, (half of the idea)
+1. CAPU_SPONSOR: all the previos logic
+
+I would like to test the negatives and then deploy to other evms
+
+# 11 - 03 - 2026
+
+Had to stop the quicknode connection, even if my chain do not produce txs, it send a lot of requests. And they are not free, send around 500k per day.
+About the planning phase, seems to work. Pretty well, pretty structured. But lets see if it works in the implementation.
+
+Not rememeber which version of entry point I used in capu, for this I see there are at least 4 versions, since 0.6, at least I need 0.7 which supports the 7702, also I see on 0.8 it was added by default. But looks like there are come improvements in the 0.9 to avoid griefing attacks also a `paymasterSignature`
+
+Entry point v0.9.0  0x433709009B8330FDa32311DF1C2AFA402eD8D009 already on sepolia arbitrum
+
+And the rcp endpoint needs to support `debug_traceCall` for the bunlder. 
+
+Something cool about the new paymaster its that it has modes: sponsor, verify and erc20.
+
+I think I am also going to deploy the fusdt token, because its easier to mint those than the faucet in the official chain.
+
+Hmmm curios about that you need real eth in some faucets. For they to give you another token.
+
+Lets run the true veredict about building and deploying. There are also commands for review the generated code. Everithing seems to work, but I am reaching the max test... deploy it and make it work.
+
+Well I tried to deployt it and it wan everything, if its what I wanted this coding mode its insane.
+
+Testing it and still iterating, nothing new than when I just chatted with claude.
+
+Its been a long time since he is trying to fix the test, no sure if that could happened using my method I am going to wait to see what happen.
+
+Well finally it completed the test looks like found a relly to debug bug, but cost almost the half of my daily limit.
+
+And then after 1 hour and 26 mins of claude running itself, seems to make the test pass.
+
+e2e test:
+
+- Bundler authentication
+- paymaster signature (VERIFYING_MODE)
+- UserOp hash verified on-chain
+- Signature of Bob with EIP-191
+- handleOps smoke test
+- Bundler acceptedm UserOp
+- Confirmed on chain
+- fUSDT tx verified
+
+# 10 - 03 - 2026
+
+Its been a while since the last update (weekend + 2 days) I got a time out and also being helping with another project, so now I have to continue.
+
+Update arb nitro, I am using 3.9.5 then they release 3.9.6 and 3.9.7, now there is a release candidate for 3.10.0. I practice I can wait until the next version but the upgrade process its something that I wanted to test.
+So far the upgrades are:
+
+- They added a flag such that the node can asume a valid state without calculating everything.
+- Fixed surplus calculation, something about pricing when using blobs.
+- Consensus v51.1
+- go-eth with RLP decoding de receipts legacy de Arbitrum
+
+With the modification of my previos paymaster and bundler to set it up on the new evms, I was testing my previos workflow usnign claude code, a friend of mine talked about a set of prompts more, stables to create a metodology about using IA
+
+What I've seen so far the planning phase has improved, it help me to be more clear about what I want to do instead of just being talking with claude and keep in mind many things by myself instead of leting the IA do it for me.
+
+Also see that they already introduce the `/plan` command, lets see if it does not five some issues.
+
+About the update pretty straight forward:
+
+```sh
+git remote add upstream git@github.com:OffchainLabs/nitro.git
+git fetch arb --tags
+git checkout -b update/v3.9.7
+git merge v3.9.7 --no-commit # check the changes
+git status
+git diff --cached --stat
+git commit -m "merge: update to upstream v3.9.7"
+
+docker build -t capu:latest . 
+```
+
+And everithing worked. Pretty simple the update. Maybe the next version will interact with more files.
+
+
+# 05 - 03 - 2026
+
+Chekcked the status of the pending transactions, since the time for disputes is over I now can execute de withdraw, well actually in theory anyone can call it.
+
+```sh
+ cast send 0x64410C44DFE9ad4E5360Da1989701d6Cd46189fb \
+    "executeTransaction(bytes32[],uint256,address,address,uint256,uint256,uint256,uint256,bytes)" \
+    "[]" \
+    0 \
+    0x8b36F5A6F4e88c3A98598B92B28178b772C2d2a7 \
+    0x8b36F5A6F4e88c3A98598B92B28178b772C2d2a7 \
+    318 \
+    10328140 \
+    1771949312 \
+    10000000000000000 \
+    0x \
+    --rpc-url 
+    --private-key <OWNER_KEY>
+```
+
+The evil validator cases lost their stake. But goes to my, or well one of the addreses. Or smart contracts.
+
+Finally removed from my docker file the evil validator attemps to trigger the disputes, none of the worked until the final step, but I think that was a good test to check the security of the protocol, and also to check if the disputes works as expected.
+
+# 04 - 03 - 2026
+
+Well interesting things I had found today, about the analysis:
+
+1. Exists this implementation of `P2P mempool` for the bundlers, so al the incoming txs are available for the bundlers.
+1. Since there is no standar for the bundler there are a lot of implementations and stacks and approaches (for example using 3 dbs to handle the mempool and txs).
+1. About the smart contracts there are monolotical and modular approaches for the smart wallets. I still not sure at all about the benefits of being modular, especially for my requirements.
+
+And looks like the Alto Pilmico is the one that is more similar to my approach, highly probably to use this one as base for the implementation.
+
+# 03 - 03 - 2026
+
+I still have pending to test:
+
+1. Alchemy Gas Manager
+1. Pilmico Paymaster 
+1. Arka
+1. Biconomy Paymaster
+
+Also today I see there is a new Arb release, there a new compilation version, I want to test it also document the process of updating my repos. And check if do I need to send a tx for this action.
+
+Another new task that was given to me is test the smart contracts solution for other evms such as:
+
+- Arbitrum
+- Ethereum
+- Polygon
+
+Maybe MegaEth could be interesting, and not sure if there is another EVM to test that oculd work for us.
+
+About the cases for evil validator I still need to wait around 33 hrs to end the period. And see if those cases lost their stake.
+
+About the withdrawal I see in the blockscout dashboard a withdraw with status waiting, looks like I can not withdraw even if the time has passed, because there are disputes going on, and those where my test the only thing I can do its wait until the dispute ends.
+
+On friday I was able to check `Alchemy` about it:
+
+- Its a good, platform and the UI very friendly, unfortunately, it does not cover the cases I need, there is a API that probably with many many work arounds could work like the one that I have. But not needed.
+- Also the sponsor is for different configs such as `ERC-20` or pure `eth` and it works for a period of time.
+
+Now could be good time for testing `Pilmico`:
+
+- https://docs.pimlico.io/references/bundler
+- https://docs.pimlico.io/references/paymaster
+- Like `Alchemy` it has a good UI, a dashboard where you can customize the policy for sponsoring but here looks like the config is more about code:
+- https://docs.pimlico.io/guides/tutorials/tutorial-1
+- https://docs.pimlico.io/guides/tutorials/tutorial-2
+- Now sure how does the conditional works https://docs.pimlico.io/guides/how-to/paymasters/conditional-sponsoring 
+- This might work and also the bundler its their problem, but not sure how do you validate the paymaster since you only need the apikey.. probably there a relation there but not sure if the apikey is designed to be used in the fronted, probably not, so this could be another abtraction as another layer for the bundler.
+
+Next one to test is `Arka`:
+
+- https://etherspot.io/arka-paymaster/
+- It was easier for me to find the repo than the page, which could be good to compare with my current solutions this might look more production ready https://github.com/etherspot/arka
+- Seems a little bit harder to get a api key (just discord mesage), the approcah its almost the same as `Pilmico`, here I see you can specify the chain, so a good abstraction to run in multiple chains.
+- A common pattern that I see in all the solutions its to especify a period of time but actually I havent seen the customization for take a fee. Maybe sending message to this discord could implement something like that but not sure.
+
+Finally I want to test `Biconomy`:
+
+- This is the onlyone with a npm package https://www.npmjs.com/package/@biconomy/paymaster
+- Repo with no updates since 2023 https://github.com/bcnmy/biconomy-paymasters
+- Not sure why this says legacy https://legacy-docs.biconomy.io/paymaster
+
+
+Well none of the solutions also has 7702, but good to know and to explore the market solutions.
+Also I can compare the solutions with my current one.
+
+---
+
+So the test for the other chains are going to be: the same frontend poc with the 7702 implementation, since those chains should have a lot of users on testnet I wont need to deploy the whole stack such the factories and entrypoint.
+However the paymaster and bundler still have to be mine. Lets start with compatibilities and then compare the base codes I've found.
+
+Because this tuit getme confused https://x.com/ETH_Daily/status/2028300987350622614 
+
+```txt
+🔥 Vitalik Buterin announced that Ethereum could roll out smart accounts (account abstraction) within the next year, as part of the upcoming Hegota upgrade.
+
+In simple terms, smart accounts will turn regular Ethereum wallets into far more powerful and flexible tools by supporting:
+
+- Multi-signature security
+- Paying gas fees with any token (not just ETH) without needing intermediaries  
+- Sending private transactions directly  
+- Easily changing your key if it gets compromised  
+- Performing multiple actions safely in one transaction
+- Stronger built-in protection, including future quantum-resistant security
+
+After nearly 10 years of research and iteration, Vitalik believes the technology is finally mature and ready for real-world deployment.
+```
+
+And I got the exact same question https://x.com/n13/status/2028371813542338924
+
+And the grok's answer:
+
+```txt
+ERC-4337 has been live since March 2023 and powers smart wallets (e.g. Argent, Safe) with features like paying gas in any token and multisig. It works well but is app-layer only—needs bundlers/paymasters, not default for all accounts. 
+
+Hegota brings native protocol-level account abstraction (via EIPs like 8141), making smart accounts seamless/default for everyone within ~1 year.
+```
+
+So erc-4337 might be working in almost all evm chains lets see if 7702 is available for those chains, actually should be just for polygon since arb is based on eth and it works.
+
+- Ethereum: works since Pectra Hardfork (may 2025)
+- Arbitrum: of course since is the base of capu. But already verified. Arbos 40. After eth hardfork
+- Polygon: Bhilai Hardfork (q3 2025) after eth hardfork.
+
+So the test migth work on those chains, now I want to compare with the biconomy and ark base code.
+
+Also found this `ERC-7677` this is a standard that I haven't hear before, seems to be for for daps and the request for the paymaster (before reaching the bundler).
+
+Another `ERC-7579` a standar for functions post factory created wallet.
+
+Well repos to be compared:
+
+Capu Demo: of course the one that I have, also based from eth-infinitism
+
+Eth Infinitism:
+- git@github.com:eth-infinitism/account-abstraction.git
+- git@github.com:eth-infinitism/bundler.git
+
+Pilmico:
+
+- git@github.com:pimlicolabs/account-abstraction.git
+- git@github.com:pimlicolabs/alto.git
+- git@github.com:pimlicolabs/BundleBear.git 
+- git@github.com:pimlicolabs/permissionless-privy-7702.git
+- git@github.com:pimlicolabs/singleton-paymaster.git
+
+Alchemy:
+Bundler in rust so rundler
+
+- git@github.com:alchemyplatform/aa-sdk.git
+- git@github.com:alchemyplatform/rundler.git
+- git@github.com:alchemyplatform/bundler-test-executor.git
+- git@github.com:alchemyplatform/alchemy-wallets-7702-thirdparty-example.git
+
+Biconomy:
+
+- git@github.com:bcnmy/biconomy_eoa_example.git
+- git@github.com:bcnmy/entry-point-gas-estimations.git
+- git@github.com:bcnmy/bundler.git
+- git@github.com:bcnmy/abstractjs.git
+
+Ark:
+They are vibecoiding
+
+- git@github.com:etherspot/etherspot-modular-accounts.git
+- git@github.com:etherspot/skandha.git
+- git@github.com:etherspot/free-bundler.git
+- git@github.com:etherspot/etherspot-prime-sdk.git
+- git@github.com:etherspot/etherspot-modular-sdk.git
+- git@github.com:etherspot/permissionless.js.git
+- git@github.com:etherspot/bundler-test-executor.git
+- git@github.com:etherspot/bundler-spec.git
+- git@github.com:etherspot/relayx.git
+- git@github.com:etherspot/arka.git
+
+Many of the uses as base eth-infinitism, and check all this codebases without ia would take weeks, now this will be done by tomorrow.
